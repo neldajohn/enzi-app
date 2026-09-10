@@ -1,0 +1,10 @@
+{% if theme %}
+<style>:root { --brand-bg: {{ theme.bg }}; --brand-solid: {{ theme.solid }}; }</style>
+{% endif %}
+<header class="topbar store-topbar">
+  <div>
+    <h1><a href="{{ url_for('store_marketplace') }}" class="wordmark-link">{{ t('app_name') }}</a></h1>
+    {% set _seller_name = seller.business_name if seller else (seller_name or None) %}
+    {% if _seller_name %}<div class="business-name">{{ _seller_name|titlecase }}</div>{% endif %}
+  </div>
+</header>

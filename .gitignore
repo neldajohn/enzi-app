@@ -1,0 +1,9 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+enzi.db
+enzi.db.backup-*
+.env
+.DS_Store
+.claude/

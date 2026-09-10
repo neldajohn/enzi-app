@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Edit Vendor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ t('edit_vendor_title') }}</h2>
+    </div>
+
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('edit_vendor', vendor_id=vendor.id) }}" class="card">
+      <label for="name">{{ t('label_vendor_name') }}</label>
+      <input type="text" id="name" name="name" value="{{ vendor.name }}" maxlength="150" required autofocus>
+
+      <label for="contact_phone">{{ t('label_vendor_phone') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="tel" id="contact_phone" name="contact_phone" value="{{ vendor.contact_phone or '' }}" maxlength="30">
+
+      <label for="contact_whatsapp">{{ t('label_vendor_whatsapp') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="tel" id="contact_whatsapp" name="contact_whatsapp" value="{{ vendor.contact_whatsapp or '' }}" maxlength="30">
+
+      <label for="contact_email">{{ t('label_vendor_email') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="email" id="contact_email" name="contact_email" value="{{ vendor.contact_email or '' }}" maxlength="150">
+
+      <label for="contact_instagram">{{ t('label_vendor_instagram') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="text" id="contact_instagram" name="contact_instagram" value="{{ vendor.contact_instagram or '' }}" maxlength="60">
+
+      <label for="typically_supplies">{{ t('label_vendor_supplies') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="text" id="typically_supplies" name="typically_supplies" value="{{ vendor.typically_supplies or '' }}" maxlength="1000">
+
+      <button type="submit">{{ t('save_changes') }}</button>
+    </form>
+
+    <a href="{{ url_for('vendor_detail', vendor_id=vendor.id) }}" class="switch-link">{{ t('cancel') }}</a>
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

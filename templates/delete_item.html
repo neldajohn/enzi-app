@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Delete Item</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ t('delete_item_title') }}</h2>
+    </div>
+    <p class="subtitle">
+      {{ item.item_name }}{% if item.item_type %} — {{ item.item_type }}{% endif %}
+      <br>{{ t('listed_price_prefix', price="{:,.0f}".format(item.price_per_unit)) }}
+      <br>{{ t('cannot_be_undone_suffix', qty=item.quantity) }}
+      <br>{{ t('recording_as_prefix', name=performed_by_name) }}
+    </p>
+
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('delete_item', item_id=item.id) }}" class="card">
+      <label for="reason">{{ t('label_reason_deleting') }}</label>
+      <input type="text" id="reason" name="reason" placeholder="{{ t('ph_reason_deleting') }}" required autofocus>
+
+      <button type="submit" class="btn-danger">{{ t('delete_item_btn') }}</button>
+    </form>
+
+    <a href="{{ url_for('sell_tab') }}" class="switch-link">{{ t('cancel') }}</a>
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Who's this?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-narrow">
+    <h1>{{ t('app_name') }}</h1>
+    <p class="subtitle">{{ t('enter_name_subtitle') }}</p>
+
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('enter_name') }}" class="card">
+      <label for="business_name">{{ t('label_business_name') }}</label>
+      <input type="text" id="business_name" name="business_name" value="{{ business_name or '' }}" placeholder="{{ t('ph_business_name') }}" maxlength="150" required autofocus>
+
+      <label for="first_name">{{ t('label_first_name') }}</label>
+      <input type="text" id="first_name" name="first_name" value="{{ first_name or '' }}" placeholder="{{ t('ph_first_name') }}" maxlength="150" required>
+
+      <label for="last_name">{{ t('label_last_name') }}</label>
+      <input type="text" id="last_name" name="last_name" value="{{ last_name or '' }}" placeholder="{{ t('ph_last_name') }}" maxlength="150" required>
+
+      <label for="pin">{{ t('label_business_pin') }}</label>
+      <input type="password" id="pin" name="pin" placeholder="{{ t('ph_business_pin') }}" minlength="4" maxlength="20" required>
+      <span class="hint">{{ t('hint_business_pin') }}</span>
+
+      <button type="submit">{{ t('continue') }}</button>
+    </form>
+  </main>
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

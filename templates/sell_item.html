@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Mark as Sold</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='photo-input.js') }}" defer></script>
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ t('mark_as_sold_title') }}</h2>
+    </div>
+    <p class="subtitle">
+      {{ item.item_name }}{% if item.item_type %} — {{ item.item_type }}{% endif %}
+      <br>{{ t('available_to_sell_suffix', avail=available) }}{% if item.reserved_quantity > 0 %}{{ t('total_reserved_suffix', total=item.quantity, reserved=item.reserved_quantity) }}{% endif %}
+      <br>{{ t('listed_price_prefix', price="{:,.0f}".format(item.price_per_unit)) }}
+      <br>{{ t('recording_as_prefix', name=performed_by_name) }}
+      {% if reservation %}<br>{{ t('filling_reservation_prefix', customer=reservation.customer_name) }}{% endif %}
+    </p>
+
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('sell_item', item_id=item.id) }}" class="card" onsubmit="return guardDoubleSubmit(this)">
+      {% if reservation %}
+        <input type="hidden" name="reservation_id" value="{{ reservation.id }}">
+      {% endif %}
+
+      <label for="quantity_sold">{{ t('label_quantity_sold') }}</label>
+      <input type="number" id="quantity_sold" name="quantity_sold" value="{{ reservation.quantity if reservation }}" placeholder="e.g. 1" min="1" max="{{ [available, 100000]|min }}" inputmode="numeric" required>
+
+      <label for="sale_price">{{ t('label_sale_price') }}</label>
+      <input type="number" id="sale_price" name="sale_price" value="{{ reservation.agreed_price if reservation }}" placeholder="e.g. 25000" min="0" max="500000000" step="0.01" inputmode="decimal" required>
+
+      <label for="customer_id">{{ t('label_customer_name') }} <span class="optional">{{ t('optional') }}</span></label>
+      <select id="customer_id" name="customer_id" onchange="toggleNewVendorFields(this, 'new-customer-fields')">
+        <option value="" {% if not (reservation and reservation.customer_id) %}selected{% endif %}>{{ t('select_a_customer') }}</option>
+        {% for c in customers %}
+          <option value="{{ c.id }}" {% if reservation and reservation.customer_id == c.id %}selected{% endif %}>{{ c.name }}{% if c.whatsapp_number %} — {{ c.whatsapp_number }}{% endif %}</option>
+        {% endfor %}
+        <option value="__new__">{{ t('add_new_customer_option') }}</option>
+      </select>
+      <div id="new-customer-fields" {% if not (reservation and reservation.customer_name and not reservation.customer_id) %}hidden{% endif %}>
+        <input type="text" name="new_customer_name" placeholder="{{ t('ph_customer_name') }}" maxlength="150" value="{{ reservation.customer_name if reservation and not reservation.customer_id }}">
+        <input type="tel" name="new_customer_whatsapp" placeholder="{{ t('ph_vendor_phone') }}" maxlength="30">
+      </div>
+
+      <label for="sale_date">{{ t('label_sale_date') }} <span class="optional">{{ t('optional_defaults_today') }}</span></label>
+      <input type="date" id="sale_date" name="sale_date" max="{{ today }}">
+
+      <button type="submit">{{ t('mark_as_sold_btn') }}</button>
+    </form>
+
+    <a href="{{ url_for('index') }}" class="switch-link arrow-link">&larr; {{ t('back') }}</a>
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{% if theme %}
+<style>:root { --brand-bg: {{ theme.bg }}; --brand-solid: {{ theme.solid }}; }</style>
+{% endif %}
+<header class="topbar">
+  <div>
+    <h1>{{ t('app_name') }}</h1>
+    <div class="business-name">{{ business.business_name|titlecase }}</div>
+  </div>
+  <div class="header-right">
+    <a href="{{ url_for('admin') }}" class="switch-link">{{ t('admin') }}</a>
+    <a href="{{ url_for('feedback') }}" class="switch-link">{{ t('send_feedback') }}</a>
+  </div>
+</header>

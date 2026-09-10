@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — {{ config.title }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ config.title }}</h2>
+      <a href="{{ url_for('items_tab') }}" class="switch-link">{{ t('cancel') }}</a>
+    </div>
+
+    {% if items %}
+      <div class="item-list">
+        {% for item in items %}
+          <a href="{{ url_for(config.route, item_id=item.id) }}" class="item-row item-row-link">
+            <div class="item-main">
+              <span class="item-name">{{ item.item_name }}</span>
+              {% if item.item_brand %}<span class="item-code">{{ item.item_brand }}</span>{% endif %}
+              {% if item.item_type %}<span class="item-code">{{ item.item_type }}</span>{% endif %}
+              {% if item.item_color %}<span class="item-code">{{ item.item_color }}</span>{% endif %}
+            </div>
+            <div class="item-meta">
+              <span>{{ t('qty_label', qty=item.quantity) }}</span>
+              <span>{{ t('available_label', avail=available_to_sell(item)) }}</span>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('empty_no_pick_items') }}</p>
+    {% endif %}
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

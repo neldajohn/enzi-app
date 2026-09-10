@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — {{ t('store_ask_title') }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  {% set seller_name = item.seller_name %}
+  <main class="page page-narrow store-page">
+    {% include '_store_header.html' %}
+
+    <a href="{{ url_for('store_item_detail', item_id=item.id) }}" class="switch-link arrow-link">{{ t('store_back_to_item') }}</a>
+
+    <div class="list-header">
+      <h2>{{ t('store_ask_title') }}</h2>
+    </div>
+    <p class="subtitle">
+      {{ t('store_ask_subtitle', seller=item.seller_name|titlecase) }}
+      <br>{{ item.item_name }} — {{ "{:,.0f}".format(item.price_per_unit) }} TZS
+    </p>
+
+    {% if submitted %}
+      {% if wa_link %}
+        <div class="card">
+          <a href="{{ wa_link }}" target="_blank" rel="noopener" class="qty-btn qty-btn-primary store-cta-btn">{{ t('store_open_whatsapp_btn') }}</a>
+        </div>
+      {% else %}
+        <p class="message message-error">{{ t('store_no_whatsapp_notice') }}</p>
+      {% endif %}
+    {% else %}
+      <form method="POST" action="{{ url_for('store_ask_seller', item_id=item.id) }}" class="card">
+        <label for="buyer_question">{{ t('label_buyer_question') }}</label>
+        <textarea id="buyer_question" name="buyer_question" placeholder="{{ t('ph_buyer_question') }}" maxlength="500" rows="4" required></textarea>
+
+        <button type="submit">{{ t('store_ask_send_btn') }}</button>
+      </form>
+    {% endif %}
+  </main>
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

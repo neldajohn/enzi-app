@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Items</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    {% if just_added %}
+      <p class="message message-success">{{ just_added }}</p>
+    {% endif %}
+    {% if just_sold %}
+      <p class="message message-success">{{ just_sold }}</p>
+    {% endif %}
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <a href="{{ url_for('add_new_item_page') }}" class="btn-add-stock">{{ t('add_stock_prominent') }}</a>
+
+    <div class="chip-nav">
+      <a href="#section-reserved" class="chip" onclick="showOnlySection('section-reserved')">{{ t('section_reserved') }} ({{ reservations|length }})</a>
+      <a href="#section-deleted" class="chip" onclick="showOnlySection('section-deleted')">{{ t('section_deleted') }} ({{ deleted_entries|length }})</a>
+      <a href="#section-upcoming" class="chip" onclick="showOnlySection('section-upcoming')">{{ t('section_upcoming') }} ({{ incoming|length }})</a>
+      <a href="#section-restock" class="chip" onclick="showOnlySection('section-restock')">{{ t('section_restock') }} ({{ restocks|length }})</a>
+      <a href="#section-wishlist" class="chip" onclick="showOnlySection('section-wishlist')">{{ t('section_wishlist') }} ({{ wishlist|length }})</a>
+    </div>
+
+    <div class="accordion-controls">
+      <button type="button" class="link-btn" onclick="document.querySelectorAll('details.accordion').forEach(function(d){d.open = true;})">{{ t('expand_all') }}</button>
+      <button type="button" class="link-btn" onclick="document.querySelectorAll('details.accordion').forEach(function(d){d.open = false;})">{{ t('collapse_all') }}</button>
+    </div>
+
+    <details class="accordion" id="section-reserved" open>
+      <summary>
+        <span>{{ t('section_reserved') }} ({{ reservations|length }})</span>
+        <a href="{{ url_for('pick_item', action='reserve') }}" class="qty-btn qty-btn-primary">{{ t('add') }}</a>
+      </summary>
+      <div class="accordion-body">
+        {% if reservations %}
+          <div class="item-list">
+            {% for r in reservations %}
+              {% set overdue = r.expected_sale_date and r.expected_sale_date < today %}
+              <div class="item-row">
+                <div class="item-main">
+                  <span class="item-name">{{ r.item_name }}{% if overdue %}<span class="exclamation" title="Follow-up overdue">!</span>{% endif %}</span>
+                  {% if r.customer_name %}<span class="item-code">{{ t('for_customer', customer=r.customer_name) }}</span>{% endif %}
+                  {% if r.reserved_by_name %}<span class="item-code">{{ t('by_name', name=r.reserved_by_name|titlecase) }}</span>{% endif %}
+                  <span class="item-code">{{ t('reserved_at', date=r.reserved_at|dt) }}</span>
+                  {% if r.expected_sale_date %}<span class="item-code">{{ t('follow_up_by', date=r.expected_sale_date) }}</span>{% endif %}
+                </div>
+                <div class="item-meta">
+                  <span>{{ t('qty_label', qty=r.quantity) }}</span>
+                  <span>{{ "{:,.0f}".format(r.agreed_price) }} TZS</span>
+                </div>
+                <div class="actions-row">
+                  <a href="{{ url_for('sell_item', item_id=r.item_id) }}?reservation_id={{ r.id }}" class="qty-btn qty-btn-primary">{{ t('sell') }}</a>
+                  <form method="POST" action="{{ url_for('cancel_reservation', reservation_id=r.id) }}" class="inline-form">
+                    <button type="submit" class="qty-btn qty-btn-cancel">{{ t('cancel') }}</button>
+                  </form>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="empty-state">{{ t('empty_no_reservations') }}</p>
+        {% endif %}
+      </div>
+    </details>
+
+    <details class="accordion" id="section-deleted">
+      <summary>
+        <span>{{ t('section_deleted') }} ({{ deleted_entries|length }})</span>
+        <a href="{{ url_for('pick_item', action='remove') }}" class="qty-btn qty-btn-primary">{{ t('add') }}</a>
+      </summary>
+      <div class="accordion-body">
+        {% if deleted_entries %}
+          <div class="item-list">
+            {% for d in deleted_entries %}
+              <div class="item-row">
+                <div class="item-main">
+                  <span class="item-name">{{ d.item_name }}</span>
+                  <span class="item-code">{{ t('fully_deleted') if d.kind == "deleted" else t('stock_removed') }}</span>
+                  {% if d.by_name %}<span class="item-code">{{ t('by_name', name=d.by_name|titlecase) }}</span>{% endif %}
+                  {% if d.at %}<span class="item-code">{{ d.at|dt }}</span>{% endif %}
+                  {% if d.reason %}<span class="item-code">{{ t('reason_prefix', reason=d.reason) }}</span>{% endif %}
+                  {% if d.note %}<span class="item-code">{{ t('note_prefix', note=d.note) }}</span>{% endif %}
+                </div>
+                <div class="item-meta">
+                  <span>{{ t('qty_label', qty=d.quantity) }}</span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="empty-state">{{ t('empty_no_deleted') }}</p>
+        {% endif %}
+      </div>
+    </details>
+
+    <details class="accordion" id="section-upcoming">
+      <summary>
+        <span>{{ t('section_upcoming') }} ({{ incoming|length }})</span>
+        <a href="{{ url_for('add_incoming') }}" class="qty-btn qty-btn-primary">{{ t('add') }}</a>
+      </summary>
+      <div class="accordion-body">
+        {% if incoming %}
+          <div class="item-list">
+            {% for inc in incoming %}
+              {% set overdue = inc.expected_date and inc.expected_date < today %}
+              <div class="item-row">
+                {% if inc.photo_url %}
+                  <img src="{{ inc.photo_url }}" alt="{{ inc.item_name }}" class="item-photo">
+                {% endif %}
+                <div class="item-main">
+                  <span class="item-name">{{ inc.item_name }}{% if overdue %}<span class="exclamation" title="Overdue">!</span>{% endif %}</span>
+                  {% if inc.item_brand %}<span class="item-code">{{ inc.item_brand }}</span>{% endif %}
+                  {% if inc.item_type %}<span class="item-code">{{ inc.item_type }}</span>{% endif %}
+                  {% if inc.item_color %}<span class="item-code">{{ inc.item_color }}</span>{% endif %}
+                  {% if inc.item_size %}<span class="item-code">{{ t('size_prefix', size=inc.item_size) }}</span>{% endif %}
+                  {% if inc.expected_date %}<span class="item-code">{{ t('expected_prefix', date=inc.expected_date) }}</span>{% endif %}
+                  {% if inc.added_by_name %}<span class="item-code">{{ t('added_by', name=inc.added_by_name|titlecase) }}</span>{% endif %}
+                </div>
+                <div class="item-meta">
+                  <span>{{ t('qty_label', qty=inc.quantity) }}</span>
+                  <span>{{ t('each_tzs', amount="{:,.0f}".format(inc.price_per_unit)) }}</span>
+                </div>
+                <div class="actions-row">
+                  <form method="POST" action="{{ url_for('quick_add_incoming', incoming_id=inc.id) }}" class="inline-form">
+                    <button type="submit" class="qty-btn qty-btn-primary">{{ t('quick_add') }}</button>
+                  </form>
+                  <a href="{{ url_for('edit_incoming', incoming_id=inc.id) }}" class="qty-btn">{{ t('edit') }}</a>
+                  <a href="{{ url_for('add_incoming', item_name=inc.item_name, item_type=inc.item_type or '', item_color=inc.item_color or '', item_brand=inc.item_brand or '', item_size=inc.item_size or '', item_code=inc.item_code or '', location=inc.location or '', quantity=inc.quantity, price_per_unit=inc.price_per_unit, expected_date=inc.expected_date or '') }}" class="qty-btn">{{ t('duplicate') }}</a>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="empty-state">{{ t('empty_no_incoming') }}</p>
+        {% endif %}
+      </div>
+    </details>
+
+    <details class="accordion" id="section-restock">
+      <summary>
+        <span>{{ t('section_restock') }} ({{ restocks|length }})</span>
+        <a href="{{ url_for('add_restock') }}" class="qty-btn qty-btn-primary">{{ t('add') }}</a>
+      </summary>
+      <div class="accordion-body">
+        {% if restocks %}
+          <div class="item-list">
+            {% for req in restocks %}
+              <div class="item-row">
+                <div class="item-main">
+                  <span class="item-name">{{ req.item_name }}</span>
+                  {% if req.customer_name %}<span class="item-code">{{ t('for_customer', customer=req.customer_name) }}</span>{% endif %}
+                  {% if req.requested_by_name %}<span class="item-code">{{ t('noted_by', name=req.requested_by_name|titlecase) }}</span>{% endif %}
+                  {% if req.suggested_vendor_name %}<span class="item-code">{{ t('usually_supplied_by', vendor=req.suggested_vendor_name) }}</span>{% endif %}
+                </div>
+                <div class="item-meta">
+                  <span>{{ req.date_requested|dt }}</span>
+                </div>
+                <div class="actions-row">
+                  <a href="{{ url_for('order_restock', restock_id=req.id) }}" class="qty-btn qty-btn-primary">{{ t('order') }}</a>
+                  <a href="{{ url_for('add_restock', item_id=req.item_id) }}" class="qty-btn">{{ t('duplicate') }}</a>
+                  <form method="POST" action="{{ url_for('delete_restock', restock_id=req.id) }}" class="inline-form">
+                    <button type="submit" class="qty-btn qty-btn-cancel">{{ t('delete') }}</button>
+                  </form>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="empty-state">{{ t('empty_no_restock') }}</p>
+        {% endif %}
+      </div>
+    </details>
+
+    <details class="accordion" id="section-wishlist">
+      <summary>
+        <span>{{ t('section_wishlist') }} ({{ wishlist|length }})</span>
+        <a href="{{ url_for('add_wishlist') }}" class="qty-btn qty-btn-primary">{{ t('add') }}</a>
+      </summary>
+      <div class="accordion-body">
+        {% if wishlist %}
+          <div class="item-list">
+            {% for w in wishlist %}
+              <div class="item-row">
+                {% if w.photo_url %}
+                  <img src="{{ w.photo_url }}" alt="{{ w.item_name }}" class="item-photo">
+                {% endif %}
+                <div class="item-main">
+                  <span class="item-name">{{ w.item_name }}</span>
+                  {% if w.link_url %}<span class="item-code"><a href="{{ w.link_url }}" target="_blank" rel="noopener">{{ t('link') }}</a></span>{% endif %}
+                  {% if w.notes %}<span class="item-note">📝 {{ w.notes }}</span>{% endif %}
+                  {% if w.added_by_name %}<span class="item-code">{{ t('added_by', name=w.added_by_name|titlecase) }}</span>{% endif %}
+                </div>
+                <div class="item-meta">
+                  <span>{{ w.created_at|dt }}</span>
+                </div>
+                <div class="actions-row">
+                  <a href="{{ url_for('order_wishlist', wishlist_id=w.id) }}" class="qty-btn qty-btn-primary">{{ t('order') }}</a>
+                  <a href="{{ url_for('add_wishlist', item_name=w.item_name, link_url=w.link_url or '', notes=w.notes or '') }}" class="qty-btn">{{ t('duplicate') }}</a>
+                  <form method="POST" action="{{ url_for('delete_wishlist', wishlist_id=w.id) }}" class="inline-form">
+                    <button type="submit" class="qty-btn qty-btn-cancel">{{ t('delete') }}</button>
+                  </form>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="empty-state">{{ t('empty_no_wishlist') }}</p>
+        {% endif %}
+      </div>
+    </details>
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+  <script>
+    function positionChipNav() {
+      var header = document.querySelector('.topbar');
+      var chipNav = document.querySelector('.chip-nav');
+      if (header && chipNav) {
+        chipNav.style.top = header.offsetHeight + 'px';
+      }
+    }
+    positionChipNav();
+    window.addEventListener('resize', positionChipNav);
+
+    function showOnlySection(id) {
+      document.querySelectorAll('details.accordion').forEach(function (d) {
+        d.open = (d.id === id);
+      });
+    }
+  </script>
+</body>
+</html>

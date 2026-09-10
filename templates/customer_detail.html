@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — {{ customer.name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <a href="{{ url_for('customers_tab') }}" class="switch-link arrow-link back-link">&larr; {{ t('back') }}</a>
+
+    <div class="list-header">
+      <h2>{{ customer.name }}</h2>
+      <a href="{{ url_for('edit_customer', customer_id=customer.id) }}" class="qty-btn">{{ t('edit') }}</a>
+    </div>
+    <p class="subtitle">{{ t('customer_detail_subtitle') }}</p>
+
+    {% if customer.whatsapp_number %}<p class="subtitle">WhatsApp: {{ customer.whatsapp_number }}</p>{% endif %}
+    {% if customer.delivery_details %}<p class="subtitle">{{ t('label_delivery_details') }}: {{ customer.delivery_details }}</p>{% endif %}
+    {% if customer.notes %}<p class="subtitle">{{ t('label_customer_notes') }}: {{ customer.notes }}</p>{% endif %}
+
+    <h2>{{ t('section_customer_sales') }} ({{ sales|length }})</h2>
+    {% if sales %}
+      <div class="item-list">
+        {% for sale in sales %}
+          <div class="item-row">
+            <div class="item-main">
+              <span class="item-name">{{ sale.item_name }}</span>
+              {% if sale.sold_by_name %}<span class="item-code">{{ t('by_name', name=sale.sold_by_name|titlecase) }}</span>{% endif %}
+            </div>
+            <div class="item-meta">
+              <span>{{ t('qty_label', qty=sale.quantity_sold) }}</span>
+              <span>{{ "{:,.0f}".format(sale.sale_price) }} TZS</span>
+              <span>{{ sale.sold_at|dt }}</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('empty_no_customer_sales') }}</p>
+    {% endif %}
+
+    <h2>{{ t('section_customer_reservations') }} ({{ active_reservations|length }})</h2>
+    {% if active_reservations %}
+      <div class="item-list">
+        {% for r in active_reservations %}
+          <div class="item-row">
+            <div class="item-main">
+              <span class="item-name">{{ r.item_name }}</span>
+              {% if r.reserved_by_name %}<span class="item-code">{{ t('by_name', name=r.reserved_by_name|titlecase) }}</span>{% endif %}
+              <span class="item-code">{{ t('reserved_at', date=r.reserved_at|dt) }}</span>
+              {% if r.expected_sale_date %}<span class="item-code">{{ t('follow_up_by', date=r.expected_sale_date) }}</span>{% endif %}
+            </div>
+            <div class="item-meta">
+              <span>{{ t('qty_label', qty=r.quantity) }}</span>
+              <span>{{ "{:,.0f}".format(r.agreed_price) }} TZS</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('empty_no_customer_reservations') }}</p>
+    {% endif %}
+
+    <h2>{{ t('section_customer_restocks') }} ({{ pending_restocks|length }})</h2>
+    {% if pending_restocks %}
+      <div class="item-list">
+        {% for req in pending_restocks %}
+          <div class="item-row">
+            <div class="item-main">
+              <span class="item-name">{{ req.item_name }}</span>
+              {% if req.requested_by_name %}<span class="item-code">{{ t('noted_by', name=req.requested_by_name|titlecase) }}</span>{% endif %}
+            </div>
+            <div class="item-meta">
+              <span>{{ req.date_requested|dt }}</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('empty_no_customer_restocks') }}</p>
+    {% endif %}
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

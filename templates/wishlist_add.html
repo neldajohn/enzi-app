@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Add to Wishlist</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='photo-input.js') }}" defer></script>
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ t('wishlist_title') }}</h2>
+    </div>
+    <p class="subtitle">{{ t('wishlist_subtitle') }}</p>
+
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('add_wishlist') }}" class="card" enctype="multipart/form-data">
+      <label for="item_name">{{ t('label_item_name') }}</label>
+      <input type="text" id="item_name" name="item_name" value="{{ prefill.item_name if prefill else '' }}" placeholder="e.g. Silk scarves" required autofocus>
+
+      <label for="link_url">{{ t('label_link') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="url" id="link_url" name="link_url" value="{{ prefill.link_url if prefill else '' }}" placeholder="{{ t('ph_link') }}">
+
+      <label for="photo">{{ t('label_picture') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="file" id="photo" name="photo" accept="image/*" class="photo-file-input" hidden onchange="showPhotoFilename('photo')">
+      <div class="photo-buttons">
+        <button type="button" class="qty-btn" onclick="triggerPhotoInput('photo')">{{ t('add_photo') }}</button>
+      </div>
+      <span id="photo-filename-photo" class="item-code"></span>
+
+      <label for="notes">{{ t('label_notes') }} <span class="optional">{{ t('optional') }}</span></label>
+      <textarea id="notes" name="notes" rows="3" placeholder="{{ t('ph_wishlist_notes') }}">{{ prefill.notes if prefill else '' }}</textarea>
+
+      <button type="submit">{{ t('add_to_wishlist_btn') }}</button>
+    </form>
+
+    <a href="{{ url_for('items_tab') }}" class="switch-link">{{ t('cancel') }}</a>
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Customers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ t('customers_title') }}</h2>
+    </div>
+    <p class="subtitle">{{ t('customers_subtitle') }}</p>
+
+    {% if just_added %}
+      <p class="message message-success">{{ just_added }}</p>
+    {% endif %}
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <details class="accordion" id="add-customer-form">
+      <summary>
+        <span>{{ t('add_customer_title') }}</span>
+      </summary>
+      <div class="accordion-body">
+        <form method="POST" action="{{ url_for('add_customer') }}" class="card">
+          <label for="c-name">{{ t('label_customer_name') }}</label>
+          <input type="text" id="c-name" name="name" placeholder="{{ t('ph_customer_name') }}" maxlength="150" required autofocus>
+
+          <label for="c-whatsapp">{{ t('label_customer_whatsapp') }} <span class="optional">{{ t('optional') }}</span></label>
+          <input type="tel" id="c-whatsapp" name="whatsapp_number" placeholder="{{ t('ph_vendor_phone') }}" maxlength="30">
+
+          <label for="c-delivery">{{ t('label_delivery_details') }} <span class="optional">{{ t('optional') }}</span></label>
+          <input type="text" id="c-delivery" name="delivery_details" placeholder="{{ t('ph_delivery_details') }}" maxlength="1000">
+
+          <label for="c-notes">{{ t('label_customer_notes') }} <span class="optional">{{ t('optional') }}</span></label>
+          <textarea id="c-notes" name="notes" rows="3" maxlength="1000"></textarea>
+
+          <button type="submit">{{ t('save_customer') }}</button>
+        </form>
+      </div>
+    </details>
+
+    {% if customers %}
+      <input type="search" id="customer-search" class="search-input" placeholder="{{ t('search_customers') }}" oninput="filterCustomers(this.value)">
+      <div class="item-list" id="customer-list">
+        {% for c in customers %}
+          <a href="{{ url_for('customer_detail', customer_id=c.id) }}" class="item-row item-row-link" data-search="{{ (c.name ~ ' ' ~ (c.whatsapp_number or ''))|lower }}">
+            <div class="item-main">
+              <span class="item-name">{{ c.name }}</span>
+              {% if c.whatsapp_number %}<span class="item-code">{{ c.whatsapp_number }}</span>{% endif %}
+              {% if sale_counts.get(c.id) %}<span class="item-code">{{ t('customer_sales_count', count=sale_counts.get(c.id)) }}</span>{% endif %}
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+      <p class="empty-state" id="customer-search-empty" hidden>{{ t('empty_no_customer_matches') }}</p>
+    {% else %}
+      <p class="empty-state">{{ t('empty_no_customers') }}</p>
+    {% endif %}
+  </main>
+  {% include '_bottom_nav.html' %}
+  <script>
+    function filterCustomers(query) {
+      query = query.trim().toLowerCase();
+      var rows = document.querySelectorAll('#customer-list [data-search]');
+      var visibleCount = 0;
+      rows.forEach(function (row) {
+        var match = row.getAttribute('data-search').indexOf(query) !== -1;
+        row.hidden = !match;
+        if (match) visibleCount++;
+      });
+      document.getElementById('customer-search-empty').hidden = visibleCount !== 0;
+    }
+  </script>
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

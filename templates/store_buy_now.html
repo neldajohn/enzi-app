@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — {{ t('store_buy_title') }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  {% set seller_name = item.seller_name %}
+  <main class="page page-narrow store-page">
+    {% include '_store_header.html' %}
+
+    <a href="{{ url_for('store_item_detail', item_id=item.id) }}" class="switch-link arrow-link">{{ t('store_back_to_item') }}</a>
+
+    <div class="list-header">
+      <h2>{{ t('store_buy_title') }}</h2>
+    </div>
+    <p class="subtitle">
+      {{ t('store_buy_subtitle', seller=item.seller_name|titlecase) }}
+      <br>{{ item.item_name }} — {{ "{:,.0f}".format(item.price_per_unit) }} TZS
+    </p>
+
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    {% if reserved %}
+      {% if wa_link %}
+        <p class="message message-success">{{ t('store_reserved_notice', seller=item.seller_name|titlecase) }}</p>
+        <div class="card">
+          <a href="{{ wa_link }}" target="_blank" rel="noopener" class="qty-btn qty-btn-primary store-cta-btn">{{ t('store_open_whatsapp_btn') }}</a>
+        </div>
+      {% else %}
+        <p class="message message-success">{{ t('store_reserved_notice', seller=item.seller_name|titlecase) }}</p>
+        <p class="message message-error">{{ t('store_no_whatsapp_notice') }}</p>
+      {% endif %}
+    {% else %}
+      <form method="POST" action="{{ url_for('store_buy_now', item_id=item.id) }}" class="card">
+        <label for="buyer_name">{{ t('label_buyer_name') }}</label>
+        <input type="text" id="buyer_name" name="buyer_name" placeholder="{{ t('ph_buyer_name') }}" maxlength="150" required autofocus>
+
+        <label for="quantity">{{ t('label_quantity') }}</label>
+        <input type="number" id="quantity" name="quantity" value="1" min="1" max="{{ [available, 100000]|min }}" inputmode="numeric" required>
+
+        <label for="delivery_address">{{ t('label_delivery_address') }}</label>
+        <input type="text" id="delivery_address" name="delivery_address" placeholder="{{ t('ph_delivery_address') }}" maxlength="500" required>
+
+        <label for="buyer_availability">{{ t('label_buyer_availability') }}</label>
+        <input type="text" id="buyer_availability" name="buyer_availability" placeholder="{{ t('ph_buyer_availability') }}" maxlength="300" required>
+
+        <label for="delivery_method">{{ t('label_delivery_method') }}</label>
+        <input type="text" id="delivery_method" name="delivery_method" placeholder="{{ t('ph_delivery_method') }}" maxlength="150" required>
+
+        <button type="submit">{{ t('store_buy_submit_btn') }}</button>
+      </form>
+    {% endif %}
+  </main>
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

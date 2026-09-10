@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — {{ vendor.name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <a href="{{ url_for('vendors_tab') }}" class="switch-link arrow-link back-link">&larr; {{ t('back') }}</a>
+
+    <div class="list-header">
+      <h2>{{ vendor.name }}</h2>
+      <a href="{{ url_for('edit_vendor', vendor_id=vendor.id) }}" class="qty-btn">{{ t('edit') }}</a>
+    </div>
+    {% if vendor.contact_whatsapp %}<p class="subtitle">WhatsApp: {{ vendor.contact_whatsapp }}</p>{% endif %}
+    {% if vendor.contact_instagram %}<p class="subtitle">Instagram: {{ vendor.contact_instagram }}</p>{% endif %}
+    {% if vendor.contact_phone %}<p class="subtitle">{{ vendor.contact_phone }}</p>{% endif %}
+    {% if vendor.contact_email %}<p class="subtitle">{{ vendor.contact_email }}</p>{% endif %}
+    <p class="subtitle">{{ t('vendor_detail_subtitle') }}</p>
+
+    {% if vendor.typically_supplies %}<p class="subtitle">{{ t('label_vendor_supplies') }}: {{ vendor.typically_supplies }}</p>{% endif %}
+
+    <h2>{{ t('section_stock_sub') }} ({{ sourced_items|length }})</h2>
+    {% if sourced_items %}
+      <div class="item-list">
+        {% for item in sourced_items %}
+          <a href="{{ url_for('item_history', item_id=item.id) }}" class="item-row item-row-link">
+            {% if item.photo_url %}
+              <img src="{{ item.photo_url }}" alt="{{ item.item_name }}" class="item-photo">
+            {% endif %}
+            <div class="item-main">
+              <span class="item-name">{{ item.item_name }}</span>
+              {% if item.item_brand %}<span class="item-code">{{ item.item_brand }}</span>{% endif %}
+            </div>
+            <div class="item-meta">
+              <span>{{ t('qty_label', qty=item.quantity) }}</span>
+              <span>{{ t('each_tzs', amount="{:,.0f}".format(item.price_per_unit)) }}</span>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('empty_no_items') }}</p>
+    {% endif %}
+
+    <h2>{{ t('section_upcoming') }} ({{ sourced_incoming|length }})</h2>
+    {% if sourced_incoming %}
+      <div class="item-list">
+        {% for inc in sourced_incoming %}
+          <div class="item-row">
+            {% if inc.photo_url %}
+              <img src="{{ inc.photo_url }}" alt="{{ inc.item_name }}" class="item-photo">
+            {% endif %}
+            <div class="item-main">
+              <span class="item-name">{{ inc.item_name }}</span>
+              {% if inc.expected_date %}<span class="item-code">{{ t('expected_prefix', date=inc.expected_date) }}</span>{% endif %}
+            </div>
+            <div class="item-meta">
+              <span>{{ t('qty_label', qty=inc.quantity) }}</span>
+              <span>{{ t('each_tzs', amount="{:,.0f}".format(inc.price_per_unit)) }}</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('empty_no_incoming') }}</p>
+    {% endif %}
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

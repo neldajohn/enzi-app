@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Business Setup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-narrow">
+    <h1>{{ t('app_name') }}</h1>
+    <p class="subtitle">{{ t('set_location_subtitle', business_name=business.business_name|titlecase) }}</p>
+
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('set_location') }}" class="card">
+      <label for="country">{{ t('label_country') }}</label>
+      <select id="country" name="country" required>
+        <option value="" disabled selected>{{ t('select_a_country') }}</option>
+        {% for c in countries %}
+          <option value="{{ c }}">{{ c }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="region-select">{{ t('label_region') }}</label>
+      <select id="region-select" name="region" hidden disabled>
+        <option value="" disabled selected>{{ t('select_a_region') }}</option>
+        {% for r in tanzania_regions %}
+          <option value="{{ r }}">{{ r }}</option>
+        {% endfor %}
+      </select>
+      <input type="text" id="region-text" name="region" placeholder="{{ t('ph_region') }}">
+
+      <label for="location">{{ t('label_default_location') }}</label>
+      <input type="text" id="location" name="location" placeholder="{{ t('ph_default_location') }}" required>
+
+      <label for="whatsapp_number">{{ t('label_business_whatsapp') }}</label>
+      <input type="tel" id="whatsapp_number" name="whatsapp_number" value="{{ business.whatsapp_number or '' }}" placeholder="{{ t('ph_vendor_phone') }}" maxlength="30" required>
+      <span class="hint">{{ t('hint_business_whatsapp') }}</span>
+
+      <button type="submit">{{ t('save_and_continue') }}</button>
+    </form>
+  </main>
+
+  <script>
+    (function () {
+      var countrySelect = document.getElementById('country');
+      var regionSelect = document.getElementById('region-select');
+      var regionText = document.getElementById('region-text');
+      function sync() {
+        var isTZ = countrySelect.value === 'Tanzania';
+        regionSelect.hidden = !isTZ;
+        regionSelect.disabled = !isTZ;
+        regionText.hidden = isTZ;
+        regionText.disabled = isTZ;
+      }
+      countrySelect.addEventListener('change', sync);
+      sync();
+    })();
+  </script>
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

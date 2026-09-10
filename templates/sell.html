@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Sell</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    {% if just_added %}
+      <p class="message message-success">{{ just_added }}</p>
+    {% endif %}
+    {% if just_sold %}
+      <p class="message message-success">{{ just_sold }}</p>
+    {% endif %}
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <div class="list-header">
+      <h2>{{ t('nav_sell') }} ({{ items|length }})</h2>
+      <div class="view-toggle">
+        <a href="{{ url_for('sell_tab', q=q, sort=sort, view='grid') }}" class="view-toggle-btn{% if view == 'grid' %} active{% endif %}">{{ t('view_grid') }}</a>
+        <a href="{{ url_for('sell_tab', q=q, sort=sort, view='list') }}" class="view-toggle-btn{% if view == 'list' %} active{% endif %}">{{ t('view_list') }}</a>
+      </div>
+    </div>
+
+    <form method="GET" action="{{ url_for('sell_tab') }}" class="search-form">
+      <input type="hidden" name="sort" value="{{ sort }}">
+      <input type="hidden" name="view" value="{{ view }}">
+      <input type="search" name="q" value="{{ q }}" placeholder="{{ t('ph_search_items') }}">
+      <button type="submit">{{ t('search') }}</button>
+    </form>
+
+    <div class="list-header">
+      <span></span>
+      <form method="GET" action="{{ url_for('sell_tab') }}" class="sort-form">
+        <input type="hidden" name="q" value="{{ q }}">
+        <input type="hidden" name="view" value="{{ view }}">
+        <label for="sort" class="sort-label">{{ t('sort_by') }}</label>
+        <select id="sort" name="sort" onchange="this.form.submit()">
+          <option value="name_asc" {% if sort == "name_asc" %}selected{% endif %}>{{ t('sort_name_asc') }}</option>
+          <option value="name_desc" {% if sort == "name_desc" %}selected{% endif %}>{{ t('sort_name_desc') }}</option>
+          <option value="newest" {% if sort == "newest" %}selected{% endif %}>{{ t('sort_newest') }}</option>
+          <option value="price_asc" {% if sort == "price_asc" %}selected{% endif %}>{{ t('sort_price_asc') }}</option>
+          <option value="price_desc" {% if sort == "price_desc" %}selected{% endif %}>{{ t('sort_price_desc') }}</option>
+          <option value="qty_asc" {% if sort == "qty_asc" %}selected{% endif %}>{{ t('sort_qty_asc') }}</option>
+          <option value="qty_desc" {% if sort == "qty_desc" %}selected{% endif %}>{{ t('sort_qty_desc') }}</option>
+          <option value="value_asc" {% if sort == "value_asc" %}selected{% endif %}>{{ t('sort_value_asc') }}</option>
+          <option value="value_desc" {% if sort == "value_desc" %}selected{% endif %}>{{ t('sort_value_desc') }}</option>
+        </select>
+        <noscript><button type="submit">{{ t('apply') }}</button></noscript>
+      </form>
+    </div>
+
+    {% if items %}
+      {% if view == "grid" %}
+        <div class="item-grid">
+          {% for item in items %}
+            {% set avail = available_to_sell(item) %}
+            <div class="grid-card">
+              <a href="{{ url_for('item_history', item_id=item.id) }}" class="grid-card-photo-link">
+                {% if item.photo_url %}
+                  <img src="{{ item.photo_url }}" alt="{{ item.item_name }}" class="grid-card-photo">
+                {% else %}
+                  <div class="grid-card-photo grid-card-photo-placeholder">{{ t('no_photo') }}</div>
+                {% endif %}
+                {% if business.logo_url %}<img src="{{ business.logo_url }}" alt="" class="photo-watermark">{% endif %}
+              </a>
+              <div class="grid-card-price">{{ "{:,.0f}".format(item.price_per_unit) }} TZS</div>
+              <div class="grid-card-qty">{{ t('available_label', avail=avail) }}</div>
+              <div class="grid-card-name">{{ item.item_name }}</div>
+              <div class="grid-card-actions">
+                {% if avail > 0 %}
+                  <a href="{{ url_for('sell_item', item_id=item.id) }}" class="qty-btn qty-btn-primary">{{ t('sell') }}</a>
+                  <a href="{{ url_for('reserve_item', item_id=item.id) }}" class="qty-btn">{{ t('reserve') }}</a>
+                {% else %}
+                  <span class="qty-btn qty-btn-disabled">{{ t('sell') }}</span>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="item-list">
+          {% for item in items %}
+            {% set avail = available_to_sell(item) %}
+            <div class="item-row">
+              {% if item.photo_url %}
+                <img src="{{ item.photo_url }}" alt="{{ item.item_name }}" class="item-photo">
+              {% endif %}
+              <div class="item-main">
+                <span class="item-name">{{ item.item_name }}{% if avail <= low_stock_threshold %}<span class="exclamation" title="Low stock">!</span>{% endif %}</span>
+                {% if item.item_brand %}<span class="item-code">{{ item.item_brand }}</span>{% endif %}
+                {% if item.item_type %}<span class="item-code">{{ item.item_type }}</span>{% endif %}
+                {% if item.item_color %}<span class="item-code">{{ item.item_color }}</span>{% endif %}
+                {% if item.item_size %}<span class="item-code">{{ t('size_prefix', size=item.item_size) }}</span>{% endif %}
+                {% if item.item_code %}<span class="item-code">{{ item.item_code }}</span>{% endif %}
+                {% if item.location %}<span class="item-code">📍 {{ item.location }}</span>{% endif %}
+                {% if item.last_added_by_name %}<span class="item-code">{{ t('last_edited_by', name=item.last_added_by_name|titlecase) }}</span>{% endif %}
+                {% if item.notes %}<span class="item-note">📝 {{ item.notes }}</span>{% endif %}
+              </div>
+              <div class="item-meta">
+                <span>{{ t('qty_label', qty=item.quantity) }}</span>
+                <span>{{ t('available_label', avail=avail) }}</span>
+                <span>{{ t('each_tzs', amount="{:,.0f}".format(item.price_per_unit)) }}</span>
+                <span class="item-line-total">{{ "{:,.0f}".format(item.quantity * item.price_per_unit) }} TZS</span>
+              </div>
+              <div class="actions-row">
+                {% if avail > 0 %}
+                  <a href="{{ url_for('sell_item', item_id=item.id) }}" class="qty-btn qty-btn-primary">{{ t('sell') }}</a>
+                  <a href="{{ url_for('reserve_item', item_id=item.id) }}" class="qty-btn">{{ t('reserve') }}</a>
+                {% else %}
+                  <span class="qty-btn qty-btn-disabled">{{ t('sell') }}</span>
+                  <span class="qty-btn qty-btn-disabled">{{ t('reserve') }}</span>
+                {% endif %}
+                <a href="{{ url_for('remove_item', item_id=item.id) }}" class="qty-btn">{{ t('remove') }}</a>
+                <a href="{{ url_for('add_stock', item_id=item.id) }}" class="qty-btn">{{ t('add') }}</a>
+              </div>
+              <div class="actions-row">
+                <a href="{{ url_for('duplicate_item', item_id=item.id) }}" class="qty-btn">{{ t('duplicate') }}</a>
+                <a href="{{ url_for('edit_item', item_id=item.id) }}" class="qty-btn">{{ t('edit') }}</a>
+              </div>
+              <div class="item-footer">
+                <a href="{{ url_for('item_history', item_id=item.id) }}" class="history-link">{{ t('view_history', date=item.updated_at|dt) }}</a>
+                <a href="{{ url_for('delete_item', item_id=item.id) }}" class="delete-link">{{ t('delete') }}</a>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% else %}
+      <p class="empty-state">{% if q %}{{ t('empty_items_match', q=q) }}{% else %}{{ t('empty_no_items') }}{% endif %}</p>
+    {% endif %}
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

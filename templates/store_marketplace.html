@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — {{ seller.business_name|titlecase if seller else t('store_marketplace_title') }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-narrow store-page">
+    {% include '_store_header.html' %}
+
+    {% if seller %}
+      <p class="subtitle">{{ t('store_seller_subtitle', business=seller.business_name|titlecase) }}</p>
+      <a href="{{ url_for('store_marketplace') }}" class="switch-link arrow-link">{{ t('store_view_full_marketplace') }}</a>
+    {% else %}
+      <p class="subtitle">{{ t('store_marketplace_subtitle') }}</p>
+    {% endif %}
+
+    {% if items %}
+      <div class="store-grid">
+        {% for item in items %}
+          <a href="{{ url_for('store_item_detail', item_id=item.id) }}" class="store-card">
+            {% if item.photo_url %}
+              <img src="{{ item.photo_url }}" alt="{{ item.item_name }}" class="store-card-photo">
+            {% else %}
+              <div class="store-card-photo store-card-photo-placeholder">{{ t('no_photo') }}</div>
+            {% endif %}
+            <div class="store-card-body">
+              <span class="store-card-name">{{ item.item_name }}</span>
+              {% if item.item_type or item.item_color %}
+                <span class="item-code">{{ [item.item_type, item.item_color]|select|join(' · ') }}</span>
+              {% endif %}
+              <span class="store-card-price">{{ "{:,.0f}".format(item.price_per_unit) }} TZS</span>
+              {% if not seller %}
+                <span class="item-code">{{ t('store_by_seller', seller=item.seller_name|titlecase) }}</span>
+              {% endif %}
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('store_empty_items') }}</p>
+    {% endif %}
+  </main>
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

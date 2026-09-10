@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Verify It's You</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-narrow">
+    <h1>{{ t('app_name') }}</h1>
+    <p class="subtitle">
+      {% if is_first_time %}
+        {{ t('verify_identity_subtitle_first_time', name=user.first_name|titlecase) }}
+      {% else %}
+        {{ t('verify_identity_subtitle_returning', name=user.first_name|titlecase) }}
+      {% endif %}
+    </p>
+
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('verify_identity') }}" class="card">
+      <label for="pin">{{ t('label_personal_pin') if is_first_time else t('label_enter_your_pin') }}</label>
+      <input type="password" id="pin" name="pin" placeholder="{{ t('ph_business_pin') }}" minlength="4" maxlength="20" required autofocus>
+
+      <button type="submit">{{ t('continue') }}</button>
+    </form>
+
+    <a href="{{ url_for('enter_name') }}" class="switch-link">{{ t('cancel') }}</a>
+  </main>
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

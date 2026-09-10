@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Confirm Price</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ t('confirm_price_title') }}</h2>
+    </div>
+    <p class="subtitle">
+      {{ t('confirm_price_subtitle', name=existing_item.item_name, old_price="{:,.0f}".format(existing_item.price_per_unit), new_price="{:,.0f}".format(new_price)) }}
+    </p>
+
+    <form method="POST" action="{{ url_for('add_item') }}" enctype="multipart/form-data" class="card">
+      {% for key, value in form_data.items() %}
+        <input type="hidden" name="{{ key }}" value="{{ value }}">
+      {% endfor %}
+      <input type="hidden" name="confirm_action" value="update_existing">
+      <button type="submit">{{ t('confirm_update_existing', qty=quantity) }}</button>
+    </form>
+
+    <form method="POST" action="{{ url_for('add_item') }}" enctype="multipart/form-data" class="card">
+      {% for key, value in form_data.items() %}
+        <input type="hidden" name="{{ key }}" value="{{ value }}">
+      {% endfor %}
+      <input type="hidden" name="confirm_action" value="create_new">
+      <button type="submit" class="qty-btn" style="width:100%;">{{ t('confirm_create_new') }}</button>
+    </form>
+
+    <a href="{{ url_for('items_tab') }}" class="switch-link">{{ t('cancel') }}</a>
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

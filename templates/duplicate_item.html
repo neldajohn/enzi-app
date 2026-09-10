@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Duplicate Item</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='photo-input.js') }}" defer></script>
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ t('duplicate_item_title') }}</h2>
+    </div>
+    <p class="subtitle">{{ t('duplicate_item_subtitle', name=item.item_name) }}</p>
+
+    <form method="POST" action="{{ url_for('add_item') }}" class="card" enctype="multipart/form-data">
+      <label for="item_type">{{ t('label_item_type') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="text" id="item_type" name="item_type" value="{{ item.item_type or '' }}" list="item-type-options" autocomplete="off">
+
+      <label for="item_brand">{{ t('label_brand') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="text" id="item_brand" name="item_brand" value="{{ item.item_brand or '' }}" list="item-brand-options" autocomplete="off" maxlength="150">
+
+      <label for="item_name">{{ t('label_item_name') }}</label>
+      <input type="text" id="item_name" name="item_name" value="{{ item.item_name }}" list="item-name-options" autocomplete="off" maxlength="150" required>
+
+      <label for="item_color">{{ t('label_item_color') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="text" id="item_color" name="item_color" value="{{ item.item_color or '' }}" list="item-color-options" autocomplete="off" maxlength="150">
+
+      <label for="item_size">{{ t('label_size') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="text" id="item_size" name="item_size" value="{{ item.item_size or '' }}" list="item-size-options" autocomplete="off" maxlength="150">
+
+      <label for="item_code">{{ t('label_item_code') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="text" id="item_code" name="item_code" value="{{ item.item_code or '' }}" maxlength="150">
+
+      <label for="location">{{ t('label_location') }}</label>
+      <input type="text" id="location" name="location" value="{{ item.location or '' }}" list="location-options" autocomplete="off" maxlength="150">
+
+      <label for="quantity">{{ t('label_quantity') }}</label>
+      <input type="number" id="quantity" name="quantity" placeholder="{{ t('ph_quantity') }}" min="0" max="100000" inputmode="numeric" required autofocus>
+
+      <label for="price_per_unit">{{ t('label_price_per_unit') }}</label>
+      <input type="number" id="price_per_unit" name="price_per_unit" value="{{ item.price_per_unit }}" min="0" max="500000000" step="0.01" inputmode="decimal" required>
+
+      <label for="vendor_id">{{ t('label_vendor_optional') }} <span class="optional">{{ t('optional') }}</span></label>
+      <select id="vendor_id" name="vendor_id" onchange="toggleNewVendorFields(this, 'new-vendor-fields')">
+        <option value="">{{ t('select_a_vendor') }}</option>
+        {% for v in vendors %}
+          <option value="{{ v.id }}" {% if item.vendor_id == v.id %}selected{% endif %}>{{ v.name }}</option>
+        {% endfor %}
+        <option value="__new__">{{ t('add_new_vendor_option') }}</option>
+      </select>
+      <div id="new-vendor-fields" hidden>
+        <input type="text" name="new_vendor_name" placeholder="{{ t('ph_vendor_name') }}" maxlength="150">
+        <input type="tel" name="new_vendor_phone" placeholder="{{ t('ph_vendor_phone') }}" maxlength="30">
+        <input type="email" name="new_vendor_email" placeholder="{{ t('ph_vendor_email') }}" maxlength="150">
+      </div>
+
+      <label for="notes">{{ t('label_notes') }} <span class="optional">{{ t('optional') }}</span></label>
+      <textarea id="notes" name="notes" rows="3" maxlength="1000">{{ item.notes or '' }}</textarea>
+
+      <label for="photo">{{ t('label_photo') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="file" id="photo" name="photo" accept="image/*" class="photo-file-input" hidden onchange="showPhotoFilename('photo')">
+      <div class="photo-buttons">
+        <button type="button" class="qty-btn" onclick="triggerPhotoInput('photo')">{{ t('add_photo') }}</button>
+      </div>
+      <span id="photo-filename-photo" class="item-code"></span>
+
+      <button type="submit">{{ t('add_as_new_item') }}</button>
+
+      <datalist id="item-name-options">{% for o in item_names %}<option value="{{ o }}">{% endfor %}</datalist>
+      <datalist id="item-brand-options">{% for o in item_brands %}<option value="{{ o }}">{% endfor %}</datalist>
+      <datalist id="item-type-options">{% for o in item_types %}<option value="{{ o }}">{% endfor %}</datalist>
+      <datalist id="item-color-options">{% for o in item_colors %}<option value="{{ o }}">{% endfor %}</datalist>
+      <datalist id="item-size-options">{% for o in item_sizes %}<option value="{{ o }}">{% endfor %}</datalist>
+      <datalist id="location-options">{% for o in locations %}<option value="{{ o }}">{% endfor %}</datalist>
+    </form>
+
+    <a href="{{ url_for('sell_tab') }}" class="switch-link">{{ t('cancel') }}</a>
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

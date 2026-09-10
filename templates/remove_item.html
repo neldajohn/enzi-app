@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Remove Stock</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='photo-input.js') }}" defer></script>
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ t('remove_stock_title') }}</h2>
+    </div>
+    <p class="subtitle">
+      {{ item.item_name }}{% if item.item_type %} — {{ item.item_type }}{% endif %}
+      <br>{{ t('listed_price_prefix', price="{:,.0f}".format(item.price_per_unit)) }}
+      <br>{{ t('in_stock_suffix', qty=item.quantity) }}
+      <br>{{ t('recording_as_prefix', name=performed_by_name) }}
+    </p>
+
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('remove_item', item_id=item.id) }}" class="card" onsubmit="return guardDoubleSubmit(this)">
+      <label for="quantity">{{ t('label_quantity_to_remove') }}</label>
+      <input type="number" id="quantity" name="quantity" placeholder="e.g. 1" min="1" max="{{ item.quantity }}" inputmode="numeric" required>
+
+      <label for="reason">{{ t('label_reason') }}</label>
+      <select id="reason" name="reason" required>
+        <option value="" disabled selected>{{ t('select_a_reason') }}</option>
+        {% for r in removal_reasons %}
+          <option value="{{ r }}">{{ r }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="note">{{ t('label_note') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="text" id="note" name="note" placeholder="{{ t('ph_note') }}" maxlength="1000">
+
+      <button type="submit">{{ t('remove_stock_btn') }}</button>
+    </form>
+
+    <a href="{{ url_for('sell_tab') }}" class="switch-link">{{ t('cancel') }}</a>
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

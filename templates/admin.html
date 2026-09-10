@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='photo-input.js') }}" defer></script>
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <a href="{{ url_for('index') }}" class="switch-link arrow-link back-link">&larr; {{ t('back') }}</a>
+
+    <div class="list-header">
+      <h2>{{ t('admin_title') }}</h2>
+      <a href="{{ url_for('switch_user') }}" class="switch-link">{{ t('log_out') }}</a>
+    </div>
+    <p class="subtitle">{{ t('admin_subtitle') }}</p>
+
+    {% if just_added %}
+      <p class="message message-success">{{ just_added }}</p>
+    {% endif %}
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <h2>{{ t('section_branding') }}</h2>
+    <p class="subtitle">{{ t('branding_subtitle') }}</p>
+    <form method="POST" action="{{ url_for('update_branding') }}" class="card" enctype="multipart/form-data">
+      <label>{{ t('label_app_color') }}</label>
+      <div class="theme-swatch-grid">
+        {% for key, preset in theme_presets.items() %}
+          <label class="theme-swatch-option">
+            <input type="radio" name="theme_preset" value="{{ key }}" {% if key == current_theme_key %}checked{% endif %}>
+            <span class="theme-swatch" style="background: {{ preset.bg }};"></span>
+            <span class="theme-swatch-label">{{ preset.label }}</span>
+          </label>
+        {% endfor %}
+        <label class="theme-swatch-option">
+          <input type="radio" name="theme_preset" value="custom" id="theme-custom-radio" {% if current_theme_key == 'custom' %}checked{% endif %}>
+          <span class="theme-swatch theme-color-wheel-wrap">
+            <input type="color" name="custom_color" value="{{ business.theme_custom_color or '#1f6f4f' }}"
+                   onclick="document.getElementById('theme-custom-radio').checked = true;"
+                   oninput="document.getElementById('theme-custom-radio').checked = true;">
+          </span>
+          <span class="theme-swatch-label">{{ t('custom_color_option') }}</span>
+        </label>
+      </div>
+
+      <label for="logo">{{ t('label_business_logo') }} <span class="optional">{{ t('optional') }}</span></label>
+      {% if business.logo_url %}
+        <img src="{{ business.logo_url }}" alt="" class="admin-logo-preview">
+      {% endif %}
+      <input type="file" id="logo" name="logo" accept="image/*" class="photo-file-input" hidden onchange="showPhotoFilename('logo')">
+      <div class="photo-buttons">
+        <button type="button" class="qty-btn" onclick="triggerPhotoInput('logo')">{{ t('add_photo') if not business.logo_url else t('change_photo') }}</button>
+      </div>
+      <span id="photo-filename-logo" class="item-code"></span>
+      <span class="hint">{{ t('logo_watermark_hint') }}</span>
+
+      <button type="submit">{{ t('save_branding') }}</button>
+    </form>
+
+    <h2>{{ t('section_store_settings') }}</h2>
+    <p class="subtitle">{{ t('store_settings_subtitle') }}</p>
+    <form method="POST" action="{{ url_for('update_store_settings') }}" class="card">
+      <label for="whatsapp_number">{{ t('label_business_whatsapp') }}</label>
+      <input type="tel" id="whatsapp_number" name="whatsapp_number" value="{{ business.whatsapp_number or '' }}" maxlength="30" required>
+      <button type="submit">{{ t('save_store_settings') }}</button>
+    </form>
+
+    <div class="item-list">
+      <div class="item-row">
+        <div class="item-main">
+          <span class="item-name">{{ t('label_your_storefront_link') }}</span>
+          <span class="item-code">{{ t('storefront_link_hint') }}</span>
+          <span class="item-code store-link-text" id="store-link-text">{{ store_url }}</span>
+        </div>
+        <button type="button" class="qty-btn" onclick="copyStoreLink('store-link-text', this)">{{ t('copy_link') }}</button>
+      </div>
+      <div class="item-row">
+        <div class="item-main">
+          <span class="item-name">{{ t('label_marketplace_link') }}</span>
+          <span class="item-code">{{ t('marketplace_link_hint') }}</span>
+          <span class="item-code store-link-text" id="marketplace-link-text">{{ marketplace_url }}</span>
+        </div>
+        <button type="button" class="qty-btn" onclick="copyStoreLink('marketplace-link-text', this)">{{ t('copy_link') }}</button>
+      </div>
+    </div>
+    <script>
+      function copyStoreLink(id, btn) {
+        var text = document.getElementById(id).textContent;
+        var done = function () {
+          var original = btn.textContent;
+          btn.textContent = "{{ t('link_copied') }}";
+          setTimeout(function () { btn.textContent = original; }, 1500);
+        };
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text).then(done);
+        } else {
+          done();
+        }
+      }
+    </script>
+
+    <h2>{{ t('users_count_title', count=users|length) }}</h2>
+
+    <details class="accordion" id="add-team-member-form">
+      <summary>
+        <span>{{ t('add_team_member_title') }}</span>
+      </summary>
+      <div class="accordion-body">
+        <form method="POST" action="{{ url_for('add_team_member') }}" class="card">
+          <label for="tm-first">{{ t('label_team_first_name') }}</label>
+          <input type="text" id="tm-first" name="first_name" maxlength="150" required autofocus>
+
+          <label for="tm-last">{{ t('label_team_last_name') }}</label>
+          <input type="text" id="tm-last" name="last_name" maxlength="150" required>
+
+          <button type="submit">{{ t('save_team_member') }}</button>
+        </form>
+      </div>
+    </details>
+
+    {% if users %}
+      <div class="item-list">
+        {% for u in users %}
+          <div class="item-row">
+            <div class="item-main">
+              <span class="item-name">{{ u.first_name|titlecase }} {{ u.last_name|titlecase }}</span>
+              <span class="item-code">{{ t('status_active') if u.pin_hash else t('status_not_activated') }}</span>
+            </div>
+            <div class="item-meta">
+              <span>{{ t('joined_prefix', date=u.created_at|dt) }}</span>
+              <span>{{ t('last_login_prefix', date=(u.last_login_at|dt if u.last_login_at else t('never'))) }}</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('empty_no_users') }}</p>
+    {% endif %}
+
+    <h2>{{ t('data_title') }}</h2>
+    <p class="subtitle">{{ t('data_subtitle') }}</p>
+    <div class="item-list">
+      <div class="item-row">
+        <div class="item-main">
+          <span class="item-name">{{ t('stock_inventory') }}</span>
+          <span class="item-code">{{ t('stock_inventory_desc') }}</span>
+        </div>
+        <a href="{{ url_for('export_csv') }}" class="qty-btn qty-btn-primary">{{ t('download_csv') }}</a>
+      </div>
+    </div>
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

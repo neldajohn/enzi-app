@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Add Stock</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='photo-input.js') }}" defer></script>
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ t('add_stock_title') }}</h2>
+    </div>
+    <p class="subtitle">
+      {{ item.item_name }}{% if item.item_type %} — {{ item.item_type }}{% endif %}
+      <br>{{ t('currently_in_stock_at', qty=item.quantity, price="{:,.0f}".format(item.price_per_unit)) }}
+      <br>{{ t('recording_as_prefix', name=performed_by_name) }}
+    </p>
+
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('add_stock', item_id=item.id) }}" class="card" onsubmit="return guardDoubleSubmit(this)">
+      <label for="quantity">{{ t('label_quantity_to_add') }}</label>
+      <input type="number" id="quantity" name="quantity" placeholder="e.g. 10" min="1" max="100000" inputmode="numeric" required autofocus>
+
+      <label for="price_per_unit">{{ t('label_new_price') }} <span class="optional">{{ t('leave_blank_to_keep', price="{:,.0f}".format(item.price_per_unit)) }}</span></label>
+      <input type="number" id="price_per_unit" name="price_per_unit" placeholder="{{ '{:,.0f}'.format(item.price_per_unit) }}" min="0" max="500000000" step="0.01" inputmode="decimal">
+
+      <label for="vendor_id">{{ t('label_vendor_optional') }} <span class="optional">{{ t('optional') }}</span></label>
+      <select id="vendor_id" name="vendor_id" onchange="toggleNewVendorFields(this, 'new-vendor-fields')">
+        <option value="">{{ t('select_a_vendor') }}</option>
+        {% for v in vendors %}
+          <option value="{{ v.id }}">{{ v.name }}</option>
+        {% endfor %}
+        <option value="__new__">{{ t('add_new_vendor_option') }}</option>
+      </select>
+      <div id="new-vendor-fields" hidden>
+        <input type="text" name="new_vendor_name" placeholder="{{ t('ph_vendor_name') }}" maxlength="150">
+        <input type="tel" name="new_vendor_phone" placeholder="{{ t('ph_vendor_phone') }}" maxlength="30">
+        <input type="email" name="new_vendor_email" placeholder="{{ t('ph_vendor_email') }}" maxlength="150">
+      </div>
+
+      <button type="submit">{{ t('add_stock_btn') }}</button>
+    </form>
+
+    <a href="{{ url_for('sell_tab') }}" class="switch-link">{{ t('cancel') }}</a>
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

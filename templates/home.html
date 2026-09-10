@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Home</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    {% if just_added %}
+      <p class="message message-success">{{ just_added }}</p>
+    {% endif %}
+    {% if just_sold %}
+      <p class="message message-success">{{ just_sold }}</p>
+    {% endif %}
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    {% if (low_stock_count > 0 and not low_stock_dismissed) or pending_reservations_count > 0 or overdue_incoming_count > 0 %}
+      <div class="snapshot-banner">
+        {% if low_stock_count > 0 and not low_stock_dismissed %}
+          <form method="POST" action="{{ url_for('dismiss_low_stock_banner') }}" class="inline-form snapshot-dismiss-form">
+            <button type="submit" class="snapshot-dismiss" aria-label="Dismiss">×</button>
+          </form>
+          <div class="snapshot-line">
+            <span>{{ t('low_stock_banner', count=low_stock_count, plural=('' if low_stock_count == 1 else 's'), threshold=low_stock_threshold) }}</span>
+            <a href="{{ url_for('items_tab', sort='qty_asc') }}" class="snapshot-view-link">{{ t('view') }}</a>
+          </div>
+        {% endif %}
+        {% if pending_reservations_count > 0 %}
+          <div class="snapshot-line">
+            <span>{{ t('pending_reservation_banner', count=pending_reservations_count, plural=('' if pending_reservations_count == 1 else 's')) }}</span>
+            <a href="{{ url_for('items_tab') }}#section-reserved" class="snapshot-view-link">{{ t('view') }}</a>
+          </div>
+        {% endif %}
+        {% if overdue_incoming_count > 0 %}
+          <div class="snapshot-line">
+            <span>{{ t('overdue_incoming_banner', count=overdue_incoming_count, plural=('' if overdue_incoming_count == 1 else 's')) }}</span>
+            <a href="{{ url_for('items_tab') }}#section-upcoming" class="snapshot-view-link">{{ t('view') }}</a>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <div class="list-header">
+      <h2>{{ t('total_inventory_value') }}</h2>
+    </div>
+    <div class="grand-total grand-total-top">
+      <span>{{ t('current_value') }}</span>
+      <span>{{ "{:,.0f}".format(grand_total) }} TZS</span>
+    </div>
+
+    <div class="dashboard-stats">
+      <div class="dashboard-stat">
+        <span class="dashboard-stat-value">{{ items_in_stock_count }}</span>
+        <span class="dashboard-stat-label">{{ t('items_in_stock') }}</span>
+        <span class="dashboard-stat-sub">{{ t('across_n_products', count=distinct_items_count) }}</span>
+      </div>
+      <div class="dashboard-stat">
+        <span class="dashboard-stat-value">{{ items_sold_count }}</span>
+        <span class="dashboard-stat-label">{{ t('items_sold_count') }}</span>
+      </div>
+    </div>
+
+    <form method="GET" action="{{ url_for('index') }}" class="sort-form value-range-form">
+      <label for="value_range" class="sort-label">{{ t('value_over') }}</label>
+      <select id="value_range" name="value_range" onchange="
+        document.getElementById('value-custom-range-fields').hidden = (this.value !== 'custom');
+        if (this.value !== 'custom') { this.form.submit(); }
+      ">
+        <option value="1h" {% if value_range == "1h" %}selected{% endif %}>{{ t('range_last_hour') }}</option>
+        <option value="24h" {% if value_range == "24h" %}selected{% endif %}>{{ t('range_last_24h') }}</option>
+        <option value="7d" {% if value_range == "7d" %}selected{% endif %}>{{ t('range_last_week') }}</option>
+        <option value="30d" {% if value_range == "30d" %}selected{% endif %}>{{ t('range_last_month') }}</option>
+        <option value="365d" {% if value_range == "365d" %}selected{% endif %}>{{ t('range_last_year') }}</option>
+        <option value="all" {% if value_range == "all" %}selected{% endif %}>{{ t('range_all_time') }}</option>
+        <option value="custom" {% if value_range == "custom" %}selected{% endif %}>{{ t('range_custom') }}</option>
+      </select>
+      <span id="value-custom-range-fields" {% if value_range != "custom" %}hidden{% endif %}>
+        <input type="date" name="value_start_date" value="{{ value_start_date }}">
+        <input type="date" name="value_end_date" value="{{ value_end_date }}">
+        <button type="submit">{{ t('apply') }}</button>
+      </span>
+    </form>
+
+    {% if value_chart_svg %}
+      <div class="card chart-card">
+        {{ value_chart_svg|safe }}
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('no_value_history') }}</p>
+    {% endif %}
+
+    <div class="list-header">
+      <h2>{{ t('recent_sales') }}</h2>
+      <a href="{{ url_for('sales_page') }}" class="switch-link">{{ t('view_all') }}</a>
+    </div>
+
+    {% if recent_sales %}
+      <div class="item-list">
+        {% for sale in recent_sales %}
+          <div class="item-row">
+            <div class="item-main">
+              <span class="item-name">{{ sale.item_name }}</span>
+              {% if sale.customer_name %}<span class="item-code">{{ t('sold_to', customer=sale.customer_name) }}</span>{% endif %}
+              {% if sale.sold_by_name %}<span class="item-code">{{ t('by_name', name=sale.sold_by_name|titlecase) }}</span>{% endif %}
+            </div>
+            <div class="item-meta">
+              <span>{{ t('qty_label', qty=sale.quantity_sold) }}</span>
+              <span>{{ "{:,.0f}".format(sale.sale_price) }} TZS</span>
+              <span>{{ sale.sold_at|dt }}</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('no_recent_sales') }}</p>
+    {% endif %}
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

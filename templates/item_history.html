@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Item History</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ item.item_name }}{% if avail <= low_stock_threshold %}<span class="exclamation" title="Low stock">!</span>{% endif %}</h2>
+      <a href="{{ url_for('sell_tab') }}" class="switch-link arrow-link">&larr; {{ t('back') }}</a>
+    </div>
+    {% if item.item_type %}<p class="subtitle">{{ item.item_type }}</p>{% endif %}
+
+    {% if item.photo_url %}
+      <div class="detail-photo-wrap">
+        <img src="{{ item.photo_url }}" alt="{{ item.item_name }}" class="detail-photo">
+        {% if business.logo_url %}<img src="{{ business.logo_url }}" alt="" class="photo-watermark">{% endif %}
+      </div>
+    {% endif %}
+
+    <div class="actions-row">
+      {% if avail > 0 %}
+        <a href="{{ url_for('sell_item', item_id=item.id) }}" class="qty-btn qty-btn-primary">{{ t('sell') }}</a>
+        <a href="{{ url_for('reserve_item', item_id=item.id) }}" class="qty-btn">{{ t('reserve') }}</a>
+      {% else %}
+        <span class="qty-btn qty-btn-disabled">{{ t('sell') }}</span>
+        <span class="qty-btn qty-btn-disabled">{{ t('reserve') }}</span>
+      {% endif %}
+      <a href="{{ url_for('remove_item', item_id=item.id) }}" class="qty-btn">{{ t('remove') }}</a>
+      <a href="{{ url_for('add_stock', item_id=item.id) }}" class="qty-btn">{{ t('add') }}</a>
+    </div>
+    <div class="actions-row">
+      <a href="{{ url_for('duplicate_item', item_id=item.id) }}" class="qty-btn">{{ t('duplicate') }}</a>
+      <a href="{{ url_for('edit_item', item_id=item.id) }}" class="qty-btn">{{ t('edit') }}</a>
+      <a href="{{ url_for('delete_item', item_id=item.id) }}" class="qty-btn qty-btn-cancel">{{ t('delete') }}</a>
+    </div>
+
+    <h2>{{ t('section_item_details') }}</h2>
+    <div class="card">
+      {% if item.item_brand %}<div class="detail-row"><span class="detail-label">{{ t('label_brand') }}</span><span>{{ item.item_brand }}</span></div>{% endif %}
+      {% if item.item_color %}<div class="detail-row"><span class="detail-label">{{ t('label_item_color') }}</span><span>{{ item.item_color }}</span></div>{% endif %}
+      {% if item.item_size %}<div class="detail-row"><span class="detail-label">{{ t('label_size') }}</span><span>{{ item.item_size }}</span></div>{% endif %}
+      {% if item.item_code %}<div class="detail-row"><span class="detail-label">{{ t('label_item_code') }}</span><span>{{ item.item_code }}</span></div>{% endif %}
+      {% if item.location %}<div class="detail-row"><span class="detail-label">{{ t('label_location') }}</span><span>{{ item.location }}</span></div>{% endif %}
+      {% if vendor %}<div class="detail-row"><span class="detail-label">{{ t('label_vendor') }}</span><span>{{ vendor.name }}</span></div>{% endif %}
+      <div class="detail-row"><span class="detail-label">{{ t('label_price_per_unit') }}</span><span>{{ "{:,.0f}".format(item.price_per_unit) }} TZS</span></div>
+      <div class="detail-row"><span class="detail-label">{{ t('label_quantity') }}</span><span>{{ item.quantity }}</span></div>
+      {% if item.notes %}<div class="detail-row"><span class="detail-label">{{ t('label_notes') }}</span><span>{{ item.notes }}</span></div>{% endif %}
+    </div>
+
+    <p class="subtitle">{{ t('stock_level_over_time', qty=item.quantity) }}</p>
+
+    {% if chart_svg %}
+      <div class="card chart-card">
+        {{ chart_svg|safe }}
+      </div>
+    {% endif %}
+
+    <h2>{{ t('section_past_sales') }} ({{ sales|length }})</h2>
+    {% if sales %}
+      <div class="item-list">
+        {% for sale in sales %}
+          <div class="item-row">
+            <div class="item-main">
+              {% if sale.customer_name %}<span class="item-code">{{ t('sold_to', customer=sale.customer_name) }}</span>{% endif %}
+              {% if sale.sold_by_name %}<span class="item-code">{{ t('by_name', name=sale.sold_by_name|titlecase) }}</span>{% endif %}
+            </div>
+            <div class="item-meta">
+              <span>{{ t('qty_label', qty=sale.quantity_sold) }}</span>
+              <span>{{ "{:,.0f}".format(sale.sale_price) }} TZS</span>
+              <span>{{ sale.sold_at|dt }}</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('empty_no_sales_for_item') }}</p>
+    {% endif %}
+
+    <h2>{{ t('history_title', count=history|length) }}</h2>
+
+    {% if history %}
+      <div class="item-list">
+        {% for entry in history %}
+          <div class="item-row">
+            <div class="item-main">
+              <span class="item-name">
+                {% if entry.change_type == "sold" %}{{ t('change_sold') }}{% elif entry.change_type == "removed" %}{{ t('change_removed') }}{% elif entry.change_type == "reserved" %}{{ t('change_reserved') }}{% else %}{{ t('change_added') }}{% endif %}
+              </span>
+              <span class="item-code">{{ entry.occurred_at|dt }}</span>
+              {% if entry.performed_by_name %}
+                <span class="item-code">{{ t('by_name', name=entry.performed_by_name|titlecase) }}</span>
+              {% endif %}
+            </div>
+            <div class="item-meta">
+              {% if entry.change_type == "reserved" %}
+                <span>{{ t('reserved_suffix', qty=entry.quantity_change) }}</span>
+              {% else %}
+                <span class="{% if entry.quantity_change < 0 %}history-negative{% else %}history-positive{% endif %}">
+                  {% if entry.quantity_change > 0 %}+{% endif %}{{ entry.quantity_change }}
+                </span>
+              {% endif %}
+              <span>{{ t('stock_after_prefix', qty=entry.resulting_quantity) }}</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('empty_no_history') }}</p>
+    {% endif %}
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — {{ item.item_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  {% set seller_name = item.seller_name %}
+  <main class="page page-narrow store-page">
+    {% include '_store_header.html' %}
+
+    <a href="{{ url_for('store_seller', business_id=item.seller_id) }}" class="switch-link arrow-link">{{ t('store_back_to_shop', business=item.seller_name|titlecase) }}</a>
+
+    {% if item.photo_url %}
+      <img src="{{ item.photo_url }}" alt="{{ item.item_name }}" class="store-detail-photo">
+    {% else %}
+      <div class="store-detail-photo store-card-photo-placeholder">{{ t('no_photo') }}</div>
+    {% endif %}
+
+    <h2 class="store-detail-name">{{ item.item_name }}</h2>
+    {% if item.item_type or item.item_color %}
+      <p class="item-code">{{ [item.item_type, item.item_color]|select|join(' · ') }}</p>
+    {% endif %}
+    <p class="store-detail-price">{{ "{:,.0f}".format(item.price_per_unit) }} TZS</p>
+    <p class="item-code">
+      {% if available > 0 %}{{ t('store_item_available', avail=available) }}{% else %}{{ t('store_item_sold_out') }}{% endif %}
+    </p>
+
+    {% if available > 0 %}
+      {% if item.seller_whatsapp %}
+        <div class="store-cta-row">
+          <a href="{{ url_for('store_buy_now', item_id=item.id) }}" class="qty-btn qty-btn-primary store-cta-btn">{{ t('cta_buy_now') }}</a>
+          <a href="{{ url_for('store_ask_seller', item_id=item.id) }}" class="qty-btn store-cta-btn">{{ t('cta_ask_seller') }}</a>
+        </div>
+      {% else %}
+        <p class="message message-error">{{ t('store_no_whatsapp_notice') }}</p>
+      {% endif %}
+    {% endif %}
+  </main>
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

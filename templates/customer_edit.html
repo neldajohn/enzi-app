@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Edit Customer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ t('edit_customer_title') }}</h2>
+    </div>
+
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('edit_customer', customer_id=customer.id) }}" class="card">
+      <label for="name">{{ t('label_customer_name') }}</label>
+      <input type="text" id="name" name="name" value="{{ customer.name }}" maxlength="150" required autofocus>
+
+      <label for="whatsapp_number">{{ t('label_customer_whatsapp') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="tel" id="whatsapp_number" name="whatsapp_number" value="{{ customer.whatsapp_number or '' }}" maxlength="30">
+
+      <label for="delivery_details">{{ t('label_delivery_details') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="text" id="delivery_details" name="delivery_details" value="{{ customer.delivery_details or '' }}" maxlength="1000">
+
+      <label for="notes">{{ t('label_customer_notes') }} <span class="optional">{{ t('optional') }}</span></label>
+      <textarea id="notes" name="notes" rows="4" maxlength="1000">{{ customer.notes or '' }}</textarea>
+
+      <button type="submit">{{ t('save_changes') }}</button>
+    </form>
+
+    <a href="{{ url_for('customer_detail', customer_id=customer.id) }}" class="switch-link">{{ t('cancel') }}</a>
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

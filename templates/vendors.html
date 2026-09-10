@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Vendors</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ t('vendors_title') }}</h2>
+    </div>
+    <p class="subtitle">{{ t('vendors_subtitle') }}</p>
+
+    {% if just_added %}
+      <p class="message message-success">{{ just_added }}</p>
+    {% endif %}
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <details class="accordion" id="add-vendor-form">
+      <summary>
+        <span>{{ t('add_vendor_title') }}</span>
+      </summary>
+      <div class="accordion-body">
+        <form method="POST" action="{{ url_for('add_vendor') }}" class="card">
+          <label for="v-name">{{ t('label_vendor_name') }}</label>
+          <input type="text" id="v-name" name="name" placeholder="{{ t('ph_vendor_name') }}" maxlength="150" required autofocus>
+
+          <label for="v-phone">{{ t('label_vendor_phone') }} <span class="optional">{{ t('optional') }}</span></label>
+          <input type="tel" id="v-phone" name="contact_phone" placeholder="{{ t('ph_vendor_phone') }}" maxlength="30">
+
+          <label for="v-whatsapp">{{ t('label_vendor_whatsapp') }} <span class="optional">{{ t('optional') }}</span></label>
+          <input type="tel" id="v-whatsapp" name="contact_whatsapp" placeholder="{{ t('ph_vendor_phone') }}" maxlength="30">
+
+          <label for="v-email">{{ t('label_vendor_email') }} <span class="optional">{{ t('optional') }}</span></label>
+          <input type="email" id="v-email" name="contact_email" placeholder="{{ t('ph_vendor_email') }}" maxlength="150">
+
+          <label for="v-instagram">{{ t('label_vendor_instagram') }} <span class="optional">{{ t('optional') }}</span></label>
+          <input type="text" id="v-instagram" name="contact_instagram" placeholder="{{ t('ph_vendor_instagram') }}" maxlength="60">
+
+          <label for="v-supplies">{{ t('label_vendor_supplies') }} <span class="optional">{{ t('optional') }}</span></label>
+          <input type="text" id="v-supplies" name="typically_supplies" placeholder="{{ t('ph_vendor_supplies') }}" maxlength="1000">
+
+          <button type="submit">{{ t('save_vendor') }}</button>
+        </form>
+      </div>
+    </details>
+
+    {% if vendors %}
+      <div class="item-list">
+        {% for v in vendors %}
+          <a href="{{ url_for('vendor_detail', vendor_id=v.id) }}" class="item-row item-row-link">
+            <div class="item-main">
+              <span class="item-name">{{ v.name }}</span>
+              {% if v.contact_phone %}<span class="item-code">{{ v.contact_phone }}</span>{% endif %}
+              {% if v.typically_supplies %}<span class="item-code">{{ v.typically_supplies }}</span>{% endif %}
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('empty_no_vendors') }}</p>
+    {% endif %}
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>
