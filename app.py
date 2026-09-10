@@ -21,7 +21,16 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = "enzi-stage1-dev-key"
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+# Vercel's Postgres/Neon integration doesn't always name this DATABASE_URL
+# depending on how it was added to the project, so fall back to the other
+# plain libpq-compatible names it commonly uses instead (POSTGRES_PRISMA_URL
+# is deliberately not included here — it carries Prisma-specific query
+# params like pgbouncer=true that psycopg2 doesn't understand).
+DATABASE_URL = (
+    os.environ.get("DATABASE_URL", "").strip()
+    or os.environ.get("POSTGRES_URL", "").strip()
+    or os.environ.get("POSTGRES_URL_NON_POOLING", "").strip()
+)
 
 CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "").strip()
 CLOUDINARY_UPLOAD_PRESET = os.environ.get("CLOUDINARY_UPLOAD_PRESET", "").strip()
