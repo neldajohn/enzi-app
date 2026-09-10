@@ -295,9 +295,9 @@ TRANSLATIONS = {
         "add_stock_btn": "Add stock",
         "add_stock_prominent": "+ Add Stock",
         "add_new_item_title": "Add stock",
-        "add_new_item_subtitle": "Pick an existing item to restock it, or fill in the details for something new.",
-        "label_existing_item": "Item",
-        "add_new_item_option": "+ Add a new item",
+        "add_new_item_subtitle": "Type the item's name to get started.",
+        "label_existing_item": "Already carry this? Quick-fill its details",
+        "add_new_item_option": "— none, this is a new item —",
         "msg_item_added_popup": "Item added!",
 
         # delete_item.html
@@ -479,8 +479,8 @@ TRANSLATIONS = {
         "err_delete_reason_required": "Please give a reason for deleting this item.",
 
         # Buyer storefront (public, no login)
-        "cta_buy_now": "Nunua Sasa",
-        "cta_ask_seller": "Uliza Muuzaji",
+        "cta_buy_now": "Buy Now",
+        "cta_ask_seller": "Ask Seller",
         "store_marketplace_title": "Enzi Marketplace",
         "store_marketplace_subtitle": "Browse available items from sellers on Enzi.",
         "store_seller_title": "{business}",

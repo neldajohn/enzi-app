@@ -21,22 +21,25 @@
 
     <form method="POST" action="{{ url_for('add_item') }}" class="card" enctype="multipart/form-data" onsubmit="return guardDoubleSubmit(this)">
       <input type="hidden" id="existing_item_id" name="existing_item_id" value="">
-      <label for="existing_item_select">{{ t('label_existing_item') }}</label>
-      <select id="existing_item_select" onchange="prefillFromExistingItem(this.value)">
-        <option value="">{{ t('add_new_item_option') }}</option>
-        {% for item in existing_items %}
-          <option value="{{ item.id }}">{{ item.item_name }}{% if item.item_brand %} — {{ item.item_brand }}{% endif %}{% if item.item_type %} — {{ item.item_type }}{% endif %}</option>
-        {% endfor %}
-      </select>
+
+      <label for="item_name">{{ t('label_item_name') }}</label>
+      <input type="text" id="item_name" name="item_name" placeholder="{{ t('ph_item_name') }}" list="item-name-options" autocomplete="off" maxlength="150" required autofocus oninput="clearPickIfNameChanged()">
+
+      {% if existing_items %}
+        <label for="existing_item_select">{{ t('label_existing_item') }}</label>
+        <select id="existing_item_select" onchange="prefillFromExistingItem(this.value)">
+          <option value="">{{ t('add_new_item_option') }}</option>
+          {% for item in existing_items %}
+            <option value="{{ item.id }}">{{ item.item_name }}{% if item.item_brand %} — {{ item.item_brand }}{% endif %}{% if item.item_type %} — {{ item.item_type }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      {% endif %}
 
       <label for="item_type">{{ t('label_item_type') }} <span class="optional">{{ t('optional') }}</span></label>
-      <input type="text" id="item_type" name="item_type" placeholder="{{ t('ph_item_type') }}" list="item-type-options" autocomplete="off" maxlength="150" autofocus>
+      <input type="text" id="item_type" name="item_type" placeholder="{{ t('ph_item_type') }}" list="item-type-options" autocomplete="off" maxlength="150">
 
       <label for="item_brand">{{ t('label_brand') }} <span class="optional">{{ t('optional') }}</span></label>
       <input type="text" id="item_brand" name="item_brand" placeholder="{{ t('ph_brand') }}" list="item-brand-options" autocomplete="off" maxlength="150">
-
-      <label for="item_name">{{ t('label_item_name') }}</label>
-      <input type="text" id="item_name" name="item_name" placeholder="{{ t('ph_item_name') }}" list="item-name-options" autocomplete="off" maxlength="150" required oninput="clearPickIfNameChanged()">
 
       <label for="item_color">{{ t('label_item_color') }} <span class="optional">{{ t('optional') }}</span></label>
       <input type="text" id="item_color" name="item_color" placeholder="{{ t('ph_item_color') }}" list="item-color-options" autocomplete="off" maxlength="150">
