@@ -1162,3 +1162,43 @@ details.accordion > summary .qty-btn {
 .store-link-text {
   word-break: break-all;
 }
+
+.form-more-details {
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+  margin-top: 4px;
+}
+
+.form-more-details > summary {
+  list-style: none;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--brand-solid);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-more-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.form-more-details > summary::before {
+  content: "▸";
+  font-family: var(--font-body);
+  transition: transform 0.15s ease;
+}
+
+.form-more-details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.form-more-details .accordion-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+  padding-left: 0;
+  padding-right: 0;
+}
