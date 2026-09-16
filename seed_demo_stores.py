@@ -227,63 +227,74 @@ STORES = [
 ]
 
 
+def seed_into(db):
+    """Does the actual seeding against an already-open db handle, inside an
+    already-active Flask app context (from a request or from `seed()` below).
+    Returns a list of one result line per store, for the caller to display."""
+    performed_by_name = f"{OWNER_FIRST} {OWNER_LAST}"
+    results = []
+
+    for store in STORES:
+        business_key = store["business_name"].strip().lower()
+        existing = db.execute(
+            "SELECT id FROM businesses WHERE business_key = ?", (business_key,)
+        ).fetchone()
+        if existing:
+            results.append(f"Skipping '{store['business_name']}' — already exists.")
+            continue
+
+        business_id = uuid.uuid4().hex
+        now = datetime.now().isoformat(timespec="seconds")
+        db.execute(
+            """
+            INSERT INTO businesses (id, business_key, business_name, default_location, country, region,
+                                     pin_hash, whatsapp_number, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                business_id, business_key, store["business_name"], store["location"], "Tanzania",
+                store["region"], generate_password_hash(PIN), store["whatsapp_number"], now,
+            ),
+        )
+
+        user_id = uuid.uuid4().hex
+        user_key = enzi_app.make_user_key(OWNER_FIRST, OWNER_LAST)
+        db.execute(
+            """
+            INSERT INTO users (id, business_id, user_key, first_name, last_name, pin_hash,
+                                last_login_at, language, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, business_id, user_key, OWNER_FIRST, OWNER_LAST, generate_password_hash(PIN), now, "en", now),
+        )
+
+        for item in store["items"]:
+            enzi_app._create_new_item(
+                db, business_id, user_id, performed_by_name, store["location"],
+                item_name=item["item_name"],
+                item_type=item.get("item_type", ""),
+                item_color=item.get("item_color", ""),
+                item_brand=item.get("item_brand", ""),
+                item_size=item.get("item_size", ""),
+                item_code=item.get("item_code", ""),
+                location=store["location"],
+                photo_url=item.get("photo_url"),
+                quantity=item["quantity"],
+                price_per_unit=item["price_per_unit"],
+            )
+
+        db.commit()
+        results.append(f"Created '{store['business_name']}' ({store['region']}) with {len(store['items'])} items.")
+
+    return results
+
+
 def seed():
+    """CLI entry point: opens its own app context and db connection."""
     with enzi_app.app.app_context():
         db = enzi_app.get_db()
-        performed_by_name = f"{OWNER_FIRST} {OWNER_LAST}"
-
-        for store in STORES:
-            business_key = store["business_name"].strip().lower()
-            existing = db.execute(
-                "SELECT id FROM businesses WHERE business_key = ?", (business_key,)
-            ).fetchone()
-            if existing:
-                print(f"Skipping '{store['business_name']}' — already exists.")
-                continue
-
-            business_id = uuid.uuid4().hex
-            now = datetime.now().isoformat(timespec="seconds")
-            db.execute(
-                """
-                INSERT INTO businesses (id, business_key, business_name, default_location, country, region,
-                                         pin_hash, whatsapp_number, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    business_id, business_key, store["business_name"], store["location"], "Tanzania",
-                    store["region"], generate_password_hash(PIN), store["whatsapp_number"], now,
-                ),
-            )
-
-            user_id = uuid.uuid4().hex
-            user_key = enzi_app.make_user_key(OWNER_FIRST, OWNER_LAST)
-            db.execute(
-                """
-                INSERT INTO users (id, business_id, user_key, first_name, last_name, pin_hash,
-                                    last_login_at, language, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (user_id, business_id, user_key, OWNER_FIRST, OWNER_LAST, generate_password_hash(PIN), now, "en", now),
-            )
-
-            for item in store["items"]:
-                enzi_app._create_new_item(
-                    db, business_id, user_id, performed_by_name, store["location"],
-                    item_name=item["item_name"],
-                    item_type=item.get("item_type", ""),
-                    item_color=item.get("item_color", ""),
-                    item_brand=item.get("item_brand", ""),
-                    item_size=item.get("item_size", ""),
-                    item_code=item.get("item_code", ""),
-                    location=store["location"],
-                    photo_url=item.get("photo_url"),
-                    quantity=item["quantity"],
-                    price_per_unit=item["price_per_unit"],
-                )
-
-            db.commit()
-            print(f"Created '{store['business_name']}' ({store['region']}) with {len(store['items'])} items.")
-
+        for line in seed_into(db):
+            print(line)
         print("\nDone. Log in to any store with:")
         print(f"  Business PIN : {PIN}")
         print(f"  Owner name   : {OWNER_FIRST} {OWNER_LAST}")

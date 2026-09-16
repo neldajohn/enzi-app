@@ -3244,6 +3244,31 @@ def store_buy_now(item_id):
     return render_template("store_buy_now.html", item=item, available=available, error=None, wa_link=None)
 
 
+# One-time demo utility: seeds a handful of fake stores/items so the buyer
+# marketplace has something to look at without onboarding sellers by hand.
+# Guarded by a fixed key in the URL rather than left wide open, but not
+# meant to be a real permission system — the data it writes is harmless and
+# idempotent (re-visiting just reports "already exists" for each store).
+SEED_DEMO_KEY = "enzi-seed-2026"
+
+
+@app.route("/admin/seed-demo-stores")
+def seed_demo_stores_route():
+    if request.args.get("key") != SEED_DEMO_KEY:
+        return "Not found", 404
+
+    import seed_demo_stores
+
+    db = get_db()
+    results = seed_demo_stores.seed_into(db)
+    lines = "\n".join(results)
+    return Response(
+        f"{lines}\n\nDone. Log in to any store with business name shown above, "
+        f"owner \"Test Test\", business PIN 1111, personal PIN 1111.\n",
+        mimetype="text/plain",
+    )
+
+
 init_db()
 
 if __name__ == "__main__":
