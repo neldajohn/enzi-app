@@ -236,15 +236,43 @@ def seed_into(db):
 
     for store in STORES:
         business_key = store["business_name"].strip().lower()
+        now = datetime.now().isoformat(timespec="seconds")
         existing = db.execute(
             "SELECT id FROM businesses WHERE business_key = ?", (business_key,)
         ).fetchone()
+
         if existing:
-            results.append(f"Skipping '{store['business_name']}' — already exists.")
+            business_id = existing["id"]
+            item_count = db.execute(
+                "SELECT count(*) AS c FROM items WHERE business_id = ? AND is_deleted = 0", (business_id,)
+            ).fetchone()["c"]
+            if item_count > 0:
+                results.append(f"Skipping '{store['business_name']}' — already has {item_count} item(s).")
+                continue
+            # Business exists but somehow has no items (e.g. a prior run got
+            # cut off partway through) — top it up instead of leaving it empty.
+            user_id = db.execute(
+                "SELECT id FROM users WHERE business_id = ? LIMIT 1", (business_id,)
+            ).fetchone()["id"]
+            for item in store["items"]:
+                enzi_app._create_new_item(
+                    db, business_id, user_id, performed_by_name, store["location"],
+                    item_name=item["item_name"],
+                    item_type=item.get("item_type", ""),
+                    item_color=item.get("item_color", ""),
+                    item_brand=item.get("item_brand", ""),
+                    item_size=item.get("item_size", ""),
+                    item_code=item.get("item_code", ""),
+                    location=store["location"],
+                    photo_url=item.get("photo_url"),
+                    quantity=item["quantity"],
+                    price_per_unit=item["price_per_unit"],
+                )
+            db.commit()
+            results.append(f"Topped up '{store['business_name']}' with {len(store['items'])} items (business already existed but had none).")
             continue
 
         business_id = uuid.uuid4().hex
-        now = datetime.now().isoformat(timespec="seconds")
         db.execute(
             """
             INSERT INTO businesses (id, business_key, business_name, default_location, country, region,
