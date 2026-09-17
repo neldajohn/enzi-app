@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Enzi — Admin</title>
+  <title>Enzi — Business Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
     <a href="{{ url_for('index') }}" class="switch-link arrow-link back-link">&larr; {{ t('back') }}</a>
 
     <div class="list-header">
-      <h2>{{ t('admin_title') }}</h2>
+      <h2>{{ t('business_admin_title') }}</h2>
       <a href="{{ url_for('switch_user') }}" class="switch-link">{{ t('log_out') }}</a>
     </div>
     <p class="subtitle">{{ t('admin_subtitle') }}</p>
@@ -28,6 +28,17 @@
     {% if error %}
       <p class="message message-error">{{ error }}</p>
     {% endif %}
+
+    <h2>{{ t('section_business_account') }}</h2>
+    <div class="item-list">
+      <div class="item-row">
+        <div class="item-main">
+          <span class="item-name">{{ t('label_account_number') }}</span>
+          <span class="item-code">{{ t('account_number_hint') }}</span>
+        </div>
+        <span class="item-code store-link-text">{{ business.account_number }}</span>
+      </div>
+    </div>
 
     <h2>{{ t('section_branding') }}</h2>
     <p class="subtitle">{{ t('branding_subtitle') }}</p>
@@ -44,7 +55,7 @@
         <label class="theme-swatch-option">
           <input type="radio" name="theme_preset" value="custom" id="theme-custom-radio" {% if current_theme_key == 'custom' %}checked{% endif %}>
           <span class="theme-swatch theme-color-wheel-wrap">
-            <input type="color" name="custom_color" value="{{ business.theme_custom_color or '#1f6f4f' }}"
+            <input type="color" name="custom_color" value="{{ business.theme_custom_color or '#BF8F02' }}"
                    onclick="document.getElementById('theme-custom-radio').checked = true;"
                    oninput="document.getElementById('theme-custom-radio').checked = true;">
           </span>

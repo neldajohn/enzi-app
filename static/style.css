@@ -5,9 +5,9 @@
   /* Per-business theme accent. --brand-bg can be a solid color or a gradient
      (used only for backgrounds); --brand-solid is always a flat color (used
      for text/icons/borders, where a gradient isn't valid CSS). The "Enzi"
-     wordmark (h1) deliberately does NOT use these — it stays brand green. */
-  --brand-bg: #1f6f4f;
-  --brand-solid: #1f6f4f;
+     wordmark (h1) deliberately does NOT use these — it stays brand gold. */
+  --brand-bg: #BF8F02;
+  --brand-solid: #BF8F02;
 }
 
 * {
@@ -43,7 +43,7 @@ h1 {
   font-size: 1.6rem;
   line-height: 1.25;
   margin: 0 0 4px;
-  color: #1f6f4f;
+  color: #BF8F02;
 }
 
 .subtitle {
@@ -53,15 +53,73 @@ h1 {
 
 .topbar {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   flex-wrap: wrap;
+  gap: 10px;
   position: sticky;
   top: 0;
   z-index: 20;
   margin: -20px -16px 16px;
   padding: 20px 16px 12px;
   background: #f4f4f2;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.header-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.header-logo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-bg);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.header-business-name {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1.25rem;
+  line-height: 1.25;
+  color: #222;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.greeting {
+  font-size: 0.85rem;
+  color: #444;
+  text-align: right;
+}
+
+.header-links {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .whoami {
@@ -809,16 +867,16 @@ details.accordion > summary .qty-btn {
   padding: 4px 10px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #1f6f4f;
+  color: #BF8F02;
   background: #fff;
-  border: 1px solid #1f6f4f;
+  border: 1px solid #BF8F02;
   border-radius: 20px;
   cursor: pointer;
 }
 
 .lang-btn-active {
   color: #fff;
-  background: #1f6f4f;
+  background: #BF8F02;
 }
 
 .bottom-nav {

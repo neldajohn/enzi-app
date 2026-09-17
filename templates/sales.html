@@ -13,6 +13,8 @@
   <main class="page page-with-bottom-nav">
     {% include '_header.html' %}
 
+    <a href="{{ url_for('index') }}" class="switch-link arrow-link back-link">&larr; {{ t('back_to_home') }}</a>
+
     <div class="list-header">
       <h2>{{ t('sales_history_title') }}</h2>
     </div>

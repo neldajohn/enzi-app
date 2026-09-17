@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Personal Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <a href="{{ url_for('index') }}" class="switch-link arrow-link back-link">&larr; {{ t('back') }}</a>
+
+    <div class="list-header">
+      <h2>{{ t('personal_admin_title') }}</h2>
+      <a href="{{ url_for('switch_user') }}" class="switch-link">{{ t('log_out') }}</a>
+    </div>
+    <p class="subtitle">{{ t('personal_admin_subtitle') }}</p>
+
+    {% if just_added %}
+      <p class="message message-success">{{ just_added }}</p>
+    {% endif %}
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('personal_admin') }}" class="card">
+      <label for="pa-name">{{ t('label_your_name') }}</label>
+      <input type="text" id="pa-name" value="{{ user.first_name|titlecase }} {{ user.last_name|titlecase }}" disabled>
+
+      <label for="contact_whatsapp">{{ t('label_personal_whatsapp') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="tel" id="contact_whatsapp" name="contact_whatsapp" value="{{ user.contact_whatsapp or '' }}" placeholder="{{ t('ph_vendor_phone') }}" maxlength="30">
+      <span class="hint">{{ t('personal_whatsapp_hint') }}</span>
+
+      <label for="contact_email">{{ t('label_personal_email') }} <span class="optional">{{ t('optional') }}</span></label>
+      <input type="email" id="contact_email" name="contact_email" value="{{ user.contact_email or '' }}" placeholder="{{ t('ph_vendor_email') }}" maxlength="150">
+      <span class="hint">{{ t('personal_email_hint') }}</span>
+
+      <button type="submit">{{ t('save_personal_contact') }}</button>
+    </form>
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

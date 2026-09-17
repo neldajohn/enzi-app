@@ -2,12 +2,26 @@
 <style>:root { --brand-bg: {{ theme.bg }}; --brand-solid: {{ theme.solid }}; }</style>
 {% endif %}
 <header class="topbar">
-  <div>
-    <h1>{{ t('app_name') }}</h1>
-    <div class="business-name">{{ business.business_name|titlecase }}</div>
+  <div class="header-brand">
+    {% if business %}
+      {% if business.logo_url %}
+        <img src="{{ business.logo_url }}" alt="" class="header-logo">
+      {% else %}
+        <div class="header-logo header-logo-placeholder">{{ (business.business_name or '?')|first|upper }}</div>
+      {% endif %}
+      <div class="header-business-name">{{ business.business_name|titlecase }}</div>
+    {% else %}
+      <h1>{{ t('app_name') }}</h1>
+    {% endif %}
   </div>
   <div class="header-right">
-    <a href="{{ url_for('admin') }}" class="switch-link">{{ t('admin') }}</a>
-    <a href="{{ url_for('feedback') }}" class="switch-link">{{ t('send_feedback') }}</a>
+    {% if user %}
+      <div class="greeting">{{ greeting }}, {{ user.first_name|titlecase }}</div>
+    {% endif %}
+    <div class="header-links">
+      <a href="{{ url_for('business_admin') }}" class="switch-link">{{ t('business_admin') }}</a>
+      <a href="{{ url_for('personal_admin') }}" class="switch-link">{{ t('personal_admin') }}</a>
+      <a href="{{ url_for('feedback') }}" class="switch-link">{{ t('send_feedback') }}</a>
+    </div>
   </div>
 </header>

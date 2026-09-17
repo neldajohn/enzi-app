@@ -5,6 +5,7 @@ import re
 import uuid
 from datetime import date, datetime, timedelta
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 import psycopg2
 import psycopg2.extras
@@ -380,12 +381,92 @@ def init_db():
     db.execute("ALTER TABLE reservations ADD COLUMN IF NOT EXISTS buyer_availability TEXT")
     db.execute("ALTER TABLE reservations ADD COLUMN IF NOT EXISTS buyer_delivery_method TEXT")
 
+    # Internal-only 9-character account number per business, for telling apart
+    # two businesses that happen to share a name — never shown to buyers.
+    # Sequence starts at a run of 1s (111111111) per spec, then increments.
+    db.execute("CREATE SEQUENCE IF NOT EXISTS business_account_number_seq START 111111111")
+    db.execute("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS account_number TEXT")
+    unnumbered = db.execute(
+        "SELECT id FROM businesses WHERE account_number IS NULL ORDER BY created_at ASC"
+    ).fetchall()
+    for row in unnumbered:
+        db.execute(
+            "UPDATE businesses SET account_number = lpad(nextval('business_account_number_seq')::text, 9, '0') "
+            "WHERE id = ?",
+            (row["id"],),
+        )
+
+    # Personal contact info (separate from the business's own buyer-facing
+    # WhatsApp number above) — used for account-recovery / lockout alerts.
+    db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS contact_whatsapp TEXT")
+    db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS contact_email TEXT")
+
+    # Progressive login lockout, tracked per business account (shared across
+    # the business-PIN and personal-PIN steps, regardless of device).
+    db.execute("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS failed_login_count INTEGER NOT NULL DEFAULT 0")
+    db.execute("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS failed_login_locked_until TEXT")
+    db.execute("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS failed_login_lockout_rounds INTEGER NOT NULL DEFAULT 0")
+
     db.commit()
     db.close()
 
 
 def make_user_key(first_name, last_name):
     return f"{first_name.strip().lower()}|{last_name.strip().lower()}"
+
+
+# Progressive login lockout — shared across the business-PIN and personal-PIN
+# steps and across every teammate, since it's scoped to the business account
+# rather than to a device or an individual user. No delay for the first 3
+# wrong attempts; attempt 4 costs 30s, attempt 5 costs 2min, attempt 6+ costs
+# 15min each, repeating forever rather than ever fully locking the account.
+def _lockout_wait_seconds(attempt_count):
+    if attempt_count == 4:
+        return 30
+    if attempt_count == 5:
+        return 120
+    if attempt_count >= 6:
+        return 900
+    return 0
+
+
+def check_business_lockout(business):
+    """Returns a translated error message if this business is currently
+    locked out, or None if a login attempt is allowed to proceed."""
+    locked_until_raw = business["failed_login_locked_until"]
+    if not locked_until_raw:
+        return None
+    try:
+        locked_until = datetime.fromisoformat(locked_until_raw)
+    except ValueError:
+        return None
+    remaining = (locked_until - datetime.now()).total_seconds()
+    if remaining <= 0:
+        return None
+    remaining = int(remaining) + 1
+    wait_text = t("wait_seconds", seconds=remaining) if remaining < 60 else t("wait_minutes", minutes=(remaining + 59) // 60)
+    return t("err_login_locked", wait=wait_text)
+
+
+def record_failed_login(db, business):
+    new_count = business["failed_login_count"] + 1
+    wait_seconds = _lockout_wait_seconds(new_count)
+    locked_until = (
+        (datetime.now() + timedelta(seconds=wait_seconds)).isoformat(timespec="seconds") if wait_seconds else None
+    )
+    db.execute(
+        "UPDATE businesses SET failed_login_count = ?, failed_login_locked_until = ? WHERE id = ?",
+        (new_count, locked_until, business["id"]),
+    )
+    db.commit()
+
+
+def clear_failed_login(db, business_id):
+    db.execute(
+        "UPDATE businesses SET failed_login_count = 0, failed_login_locked_until = NULL WHERE id = ?",
+        (business_id,),
+    )
+    db.commit()
 
 
 def title_case(value):
@@ -402,6 +483,21 @@ def format_datetime(value):
     except ValueError:
         return value
     return dt.strftime("%b %d, %Y %I:%M %p")
+
+
+# Sellers are in Tanzania, but the server isn't necessarily — greetings are
+# computed against Tanzania's own clock (EAT, UTC+3, no DST) rather than
+# whatever timezone happens to be hosting the app.
+EAT = ZoneInfo("Africa/Dar_es_Salaam")
+
+
+def time_based_greeting():
+    hour = datetime.now(EAT).hour
+    if 5 <= hour < 12:
+        return t("greeting_morning")
+    if 12 <= hour < 17:
+        return t("greeting_afternoon")
+    return t("greeting_evening")
 
 
 def _clamp_text(value, max_len):
@@ -473,14 +569,17 @@ app.jinja_env.globals["t"] = t
 
 @app.context_processor
 def inject_business():
-    """Makes `business` (and its derived `theme`) available to every template
-    automatically (for the persistent header and brand styling), without
-    every route needing to fetch and pass them."""
+    """Makes `business`, `user`, `theme`, and `greeting` available to every
+    template automatically (for the persistent header and brand styling),
+    without every route needing to fetch and pass them."""
     business_id = session.get("business_id")
     if not business_id:
         return {"theme": get_theme(None)}
-    business = get_db().execute("SELECT * FROM businesses WHERE id = ?", (business_id,)).fetchone()
-    return {"business": business, "theme": get_theme(business)}
+    db = get_db()
+    business = db.execute("SELECT * FROM businesses WHERE id = ?", (business_id,)).fetchone()
+    user_id = session.get("user_id")
+    user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone() if user_id else None
+    return {"business": business, "user": user, "theme": get_theme(business), "greeting": time_based_greeting()}
 
 
 def find_matching_item(db, business_id, item_name, item_type, item_color, item_brand, item_size, item_code):
@@ -599,9 +698,9 @@ def build_quantity_chart(history):
         f'<line x1="{pad_left}" y1="{pad_top + plot_height:.1f}" x2="{pad_left + plot_width:.1f}" '
         f'y2="{pad_top + plot_height:.1f}" stroke="#ccc" stroke-width="1" />'
     )
-    svg.append(f'<polyline points="{" ".join(points)}" fill="none" stroke="#1f6f4f" stroke-width="2" />')
+    svg.append(f'<polyline points="{" ".join(points)}" fill="none" stroke="#BF8F02" stroke-width="2" />')
     for x, y, q in circles:
-        svg.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" fill="#1f6f4f" />')
+        svg.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" fill="#BF8F02" />')
         svg.append(f'<text x="{x:.1f}" y="{y - 8:.1f}" font-size="10" text-anchor="middle" fill="#333">{q}</text>')
     for x, label in labels:
         svg.append(
@@ -728,9 +827,9 @@ def build_value_chart(snapshots):
         f'<line x1="{pad_left}" y1="{pad_top + plot_height:.1f}" x2="{pad_left + plot_width:.1f}" '
         f'y2="{pad_top + plot_height:.1f}" stroke="#ccc" stroke-width="1" />'
     )
-    svg.append(f'<polyline points="{" ".join(points)}" fill="none" stroke="#1f6f4f" stroke-width="2" />')
+    svg.append(f'<polyline points="{" ".join(points)}" fill="none" stroke="#BF8F02" stroke-width="2" />')
     for x, y in circles:
-        svg.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="#1f6f4f" />')
+        svg.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="#BF8F02" />')
     svg.append(
         f'<text x="{pad_left - 6:.1f}" y="{pad_top + 4:.1f}" font-size="9" text-anchor="end" fill="#777">'
         f'{max_v:,.0f}</text>'
@@ -757,13 +856,13 @@ LOW_STOCK_THRESHOLD = 5
 # anywhere CSS requires one (text, borders, icons) since gradients aren't
 # valid there. The Enzi wordmark itself never uses these — see style.css.
 THEME_PRESETS = {
-    "enzi_green": {"label": "Enzi Green (default)", "bg": "#1f6f4f", "solid": "#1f6f4f"},
+    "enzi_green": {"label": "Enzi Gold (default)", "bg": "#BF8F02", "solid": "#BF8F02"},
     "ocean_blue": {"label": "Ocean Blue", "bg": "#2563eb", "solid": "#2563eb"},
     "sunset_orange": {"label": "Sunset Orange", "bg": "#ea580c", "solid": "#ea580c"},
     "royal_purple": {"label": "Royal Purple", "bg": "#7c3aed", "solid": "#7c3aed"},
     "rose_pink": {"label": "Rose Pink", "bg": "#db2777", "solid": "#db2777"},
     "charcoal": {"label": "Charcoal", "bg": "#374151", "solid": "#374151"},
-    "gold": {"label": "Gold", "bg": "#b45309", "solid": "#b45309"},
+    "gold": {"label": "Amber", "bg": "#b45309", "solid": "#b45309"},
     "crimson_red": {"label": "Crimson Red", "bg": "#b91c1c", "solid": "#b91c1c"},
     "tanzania_black_gradient": {"label": "Tanzania Black", "bg": "linear-gradient(135deg, #4b5563, #000000)", "solid": "#111827"},
     "tanzania_green_gradient": {"label": "Tanzania Green", "bg": "linear-gradient(135deg, #2ecc59, #0e7a2c)", "solid": "#1eb53a"},
@@ -1451,7 +1550,11 @@ def enter_name():
         if business:
             business_id = business["id"]
             if business["pin_hash"]:
+                lockout_error = check_business_lockout(business)
+                if lockout_error:
+                    return render_template("enter_name.html", error=lockout_error, **prefill)
                 if not check_password_hash(business["pin_hash"], pin):
+                    record_failed_login(db, business)
                     return render_template("enter_name.html", error=t("err_pin_incorrect"), **prefill)
             else:
                 # Grandfathered business created before PINs existed: the first
@@ -1463,8 +1566,10 @@ def enter_name():
         else:
             business_id = uuid.uuid4().hex
             db.execute(
-                "INSERT INTO businesses (id, business_key, business_name, default_location, country, region, pin_hash, created_at) "
-                "VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?)",
+                "INSERT INTO businesses (id, business_key, business_name, default_location, country, region, "
+                "pin_hash, account_number, created_at) "
+                "VALUES (?, ?, ?, NULL, NULL, NULL, ?, "
+                "lpad(nextval('business_account_number_seq')::text, 9, '0'), ?)",
                 (business_id, business_key, business_name, generate_password_hash(pin), datetime.now().isoformat(timespec="seconds")),
             )
 
@@ -1500,6 +1605,7 @@ def enter_name():
         device_token = request.cookies.get("enzi_device")
         if user["pin_hash"] and device_token and device_token == user["trusted_device_token"]:
             # Recognized device, already-verified identity: straight in.
+            clear_failed_login(db, business_id)
             session["business_id"] = business_id
             session["user_id"] = user_id
             session.pop("low_stock_dismissed", None)
@@ -1522,8 +1628,9 @@ def verify_identity():
         return redirect(url_for("enter_name"))
 
     db = get_db()
+    business = db.execute("SELECT * FROM businesses WHERE id = ?", (business_id,)).fetchone()
     user = db.execute("SELECT * FROM users WHERE id = ? AND business_id = ?", (user_id, business_id)).fetchone()
-    if not user:
+    if not business or not user:
         session.pop("pending_business_id", None)
         session.pop("pending_user_id", None)
         return redirect(url_for("enter_name"))
@@ -1532,16 +1639,24 @@ def verify_identity():
 
     if request.method == "POST":
         pin = request.form.get("pin", "").strip()[:20]
+
+        if not is_first_time:
+            lockout_error = check_business_lockout(business)
+            if lockout_error:
+                return render_template("verify_identity.html", user=user, is_first_time=is_first_time, error=lockout_error)
+
         if len(pin) < 4:
             return render_template("verify_identity.html", user=user, is_first_time=is_first_time, error=t("err_pin_too_short"))
 
         if is_first_time:
             db.execute("UPDATE users SET pin_hash = ? WHERE id = ?", (generate_password_hash(pin), user_id))
         elif not check_password_hash(user["pin_hash"], pin):
+            record_failed_login(db, business)
             return render_template("verify_identity.html", user=user, is_first_time=is_first_time, error=t("err_pin_incorrect"))
 
         device_token = uuid.uuid4().hex
         db.execute("UPDATE users SET trusted_device_token = ? WHERE id = ?", (device_token, user_id))
+        clear_failed_login(db, business_id)
         db.commit()
 
         session.pop("pending_business_id", None)
@@ -1615,8 +1730,8 @@ def dismiss_low_stock_banner():
     return redirect(url_for("index"))
 
 
-@app.route("/admin")
-def admin():
+@app.route("/admin/business")
+def business_admin():
     business_id = session.get("business_id")
     if not business_id:
         return redirect(url_for("enter_name"))
@@ -1651,7 +1766,7 @@ def add_team_member():
     last_name = _clamp_text(request.form.get("last_name"), 150)
     if not first_name or not last_name:
         session["error"] = t("err_team_member_name_required")
-        return redirect(url_for("admin"))
+        return redirect(url_for("business_admin"))
 
     user_key = make_user_key(first_name, last_name)
     existing = db.execute(
@@ -1659,7 +1774,7 @@ def add_team_member():
     ).fetchone()
     if existing:
         session["error"] = t("err_team_member_exists")
-        return redirect(url_for("admin"))
+        return redirect(url_for("business_admin"))
 
     performed_by_name = f"{user['first_name']} {user['last_name']}"
     new_id = uuid.uuid4().hex
@@ -1675,7 +1790,7 @@ def add_team_member():
     db.commit()
 
     session["just_added"] = t("msg_team_member_added", name=f"{first_name} {last_name}")
-    return redirect(url_for("admin"))
+    return redirect(url_for("business_admin"))
 
 
 @app.route("/admin/branding", methods=["POST"])
@@ -1697,7 +1812,7 @@ def update_branding():
     if theme_preset == "custom":
         if not HEX_COLOR_RE.match(custom_color):
             session["error"] = t("err_invalid_color")
-            return redirect(url_for("admin"))
+            return redirect(url_for("business_admin"))
         theme_custom_color = custom_color
     elif theme_preset not in THEME_PRESETS:
         theme_preset = business["theme_preset"] or DEFAULT_THEME_PRESET
@@ -1718,7 +1833,7 @@ def update_branding():
     db.commit()
 
     session["just_added"] = t("msg_branding_updated")
-    return redirect(url_for("admin"))
+    return redirect(url_for("business_admin"))
 
 
 @app.route("/admin/store-settings", methods=["POST"])
@@ -1736,16 +1851,51 @@ def update_store_settings():
     whatsapp_number = _clamp_text(request.form.get("whatsapp_number"), 30)
     if not whatsapp_number:
         session["error"] = t("err_business_whatsapp_required")
-        return redirect(url_for("admin"))
+        return redirect(url_for("business_admin"))
     if not _valid_phone(whatsapp_number):
         session["error"] = t("err_phone_invalid")
-        return redirect(url_for("admin"))
+        return redirect(url_for("business_admin"))
 
     db.execute("UPDATE businesses SET whatsapp_number = ? WHERE id = ?", (whatsapp_number, business_id))
     db.commit()
 
     session["just_added"] = t("msg_store_settings_updated")
-    return redirect(url_for("admin"))
+    return redirect(url_for("business_admin"))
+
+
+@app.route("/admin/personal", methods=["GET", "POST"])
+def personal_admin():
+    business, user, bounce = _require_business()
+    if bounce:
+        return bounce
+    db = get_db()
+
+    if request.method == "POST":
+        contact_whatsapp = _clamp_text(request.form.get("contact_whatsapp"), 30)
+        contact_email = _clamp_text(request.form.get("contact_email"), 150)
+
+        if not _valid_phone(contact_whatsapp):
+            return render_template(
+                "personal_admin.html", user=user, error=t("err_phone_invalid"),
+            )
+        if not _valid_email(contact_email):
+            return render_template(
+                "personal_admin.html", user=user, error=t("err_email_invalid"),
+            )
+
+        db.execute(
+            "UPDATE users SET contact_whatsapp = ?, contact_email = ? WHERE id = ?",
+            (contact_whatsapp or None, contact_email or None, user["id"]),
+        )
+        db.commit()
+
+        session["just_added"] = t("msg_personal_contact_updated")
+        return redirect(url_for("personal_admin"))
+
+    return render_template(
+        "personal_admin.html", user=user, error=None,
+        just_added=session.pop("just_added", None),
+    )
 
 
 def _add_quantity_to_item(db, item_id, business_id, user_id, performed_by_name, *,
