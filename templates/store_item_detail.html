@@ -35,7 +35,7 @@
       {% if item.seller_whatsapp %}
         <div class="store-cta-row">
           <a href="{{ url_for('store_buy_now', item_id=item.id) }}" class="qty-btn qty-btn-primary store-cta-btn">{{ t('cta_buy_now') }}</a>
-          <a href="{{ url_for('store_ask_seller', item_id=item.id) }}" class="qty-btn store-cta-btn">{{ t('cta_ask_seller') }}</a>
+          <a href="{{ ask_wa_link }}" target="_blank" rel="noopener" class="qty-btn store-cta-btn">{{ t('cta_ask_seller') }}</a>
         </div>
       {% else %}
         <p class="message message-error">{{ t('store_no_whatsapp_notice') }}</p>

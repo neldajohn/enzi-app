@@ -1893,6 +1893,35 @@ def update_user_access_level(user_id):
     return redirect(url_for("business_admin"))
 
 
+@app.route("/admin/users/<user_id>/remove", methods=["GET", "POST"])
+def remove_team_member(user_id):
+    business_id = session.get("business_id")
+    current_user_id = session.get("user_id")
+    if not business_id:
+        return redirect(url_for("enter_name"))
+
+    db = get_db()
+    target_user = db.execute(
+        "SELECT * FROM users WHERE id = ? AND business_id = ?", (user_id, business_id)
+    ).fetchone()
+    if not target_user:
+        return redirect(url_for("business_admin"))
+
+    if request.method == "POST":
+        if user_id == current_user_id:
+            return render_template(
+                "remove_user_confirm.html", target_user=target_user, error=t("err_cannot_remove_self"),
+            )
+        db.execute("DELETE FROM users WHERE id = ? AND business_id = ?", (user_id, business_id))
+        db.commit()
+        session["just_added"] = t(
+            "msg_user_removed", name=f"{target_user['first_name']} {target_user['last_name']}"
+        )
+        return redirect(url_for("business_admin"))
+
+    return render_template("remove_user_confirm.html", target_user=target_user, error=None)
+
+
 @app.route("/admin/branding", methods=["POST"])
 def update_branding():
     business_id = session.get("business_id")
@@ -3356,8 +3385,7 @@ def export_csv():
 ASK_SELLER_MESSAGE = (
     "Habari! Nina swali kuhusu bidhaa hii kwenye Enzi:\n"
     "Bidhaa: {item}\n"
-    "Bei: {price}\n\n"
-    "{question}"
+    "Bei: {price}"
 )
 
 BUY_NOW_MESSAGE = (
@@ -3423,34 +3451,13 @@ def store_item_detail(item_id):
     if not item:
         return redirect(url_for("store_marketplace"))
     seller = _get_storefront_item_seller(db, item)
+    ask_message = ASK_SELLER_MESSAGE.format(
+        item=item_descriptor(item), price=format_price(item["price_per_unit"]),
+    )
+    ask_wa_link = build_whatsapp_link(item["seller_whatsapp"], ask_message)
     return render_template(
         "store_item_detail.html", item=item, available=available_to_sell(item), seller=seller,
-        theme=get_theme(seller), font=get_font(seller),
-    )
-
-
-@app.route("/store/item/<item_id>/ask", methods=["GET", "POST"])
-def store_ask_seller(item_id):
-    db = get_db()
-    item = _get_storefront_item(db, item_id)
-    if not item:
-        return redirect(url_for("store_marketplace"))
-    seller = _get_storefront_item_seller(db, item)
-
-    if request.method == "POST":
-        buyer_question = _clamp_text(request.form.get("buyer_question"), 500)
-        message = ASK_SELLER_MESSAGE.format(
-            item=item_descriptor(item), price=format_price(item["price_per_unit"]), question=buyer_question,
-        )
-        wa_link = build_whatsapp_link(item["seller_whatsapp"], message)
-        return render_template(
-            "store_ask_seller.html", item=item, wa_link=wa_link, submitted=True, seller=seller,
-            theme=get_theme(seller), font=get_font(seller),
-        )
-
-    return render_template(
-        "store_ask_seller.html", item=item, wa_link=None, submitted=False, seller=seller,
-        theme=get_theme(seller), font=get_font(seller),
+        ask_wa_link=ask_wa_link, theme=get_theme(seller), font=get_font(seller),
     )
 
 

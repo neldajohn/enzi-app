@@ -15,7 +15,6 @@
 
     {% if seller %}
       <p class="subtitle">{{ t('store_seller_subtitle', business=seller.business_name|titlecase) }}</p>
-      <a href="{{ url_for('store_marketplace') }}" class="switch-link arrow-link">{{ t('store_view_full_marketplace') }}</a>
     {% else %}
       <p class="subtitle">{{ t('store_marketplace_subtitle') }}</p>
     {% endif %}

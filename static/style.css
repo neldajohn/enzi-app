@@ -284,6 +284,29 @@ h2 {
   gap: 8px;
 }
 
+.section-gap-after {
+  margin-bottom: 16px;
+}
+
+.plain-list {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 4px;
+}
+
+.plain-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.item-value {
+  color: #444;
+  text-align: right;
+}
+
 .item-row {
   background: #fff;
   border-radius: 8px;
@@ -486,35 +509,73 @@ h2 {
   width: 100%;
 }
 
-.access-level-row {
-  flex-direction: column;
-  align-items: stretch;
+.users-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.access-level-row .item-main {
-  flex: 0 0 auto;
-}
-
-.access-level-form {
-  display: flex;
-  gap: 8px;
-  margin: 0;
-}
-
-.access-level-form select {
-  flex: 1;
-  padding: 10px 12px;
-  font-family: var(--font-body);
-  font-size: 0.95rem;
-  border: 1px solid #ccc;
-  border-radius: 8px;
+.users-table {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
   background: #fff;
-  color: #222;
+  font-size: 0.85rem;
 }
 
-.access-level-form .qty-btn {
-  flex: 0 0 auto;
-  margin-top: 0;
+.users-table th,
+.users-table td {
+  padding: 12px 14px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.users-table th {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  color: #666;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid #eee;
+}
+
+.users-table tbody tr:not(:last-child) td {
+  border-bottom: 1px solid #f2f2f2;
+}
+
+.manage-dialog {
+  width: min(400px, calc(100vw - 48px));
+  border: none;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.manage-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.manage-dialog h3 {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 1.1rem;
+  margin: 0 0 14px;
+}
+
+.manage-dialog .card {
+  margin-bottom: 14px;
+}
+
+.remove-user-link {
+  display: block;
+  color: #a83232;
+  margin-bottom: 14px;
+}
+
+.manage-dialog-close {
+  width: 100%;
 }
 
 .item-footer {
@@ -1169,8 +1230,16 @@ details.accordion > summary .qty-btn {
   background: none;
 }
 
-.wordmark-link {
-  text-decoration: none;
+.store-enzi-mark {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1.3rem;
+  color: #F2CB36;
+}
+
+.store-enzi-mark[src] {
+  height: 32px;
+  width: auto;
 }
 
 .store-category-heading {
