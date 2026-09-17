@@ -55,7 +55,7 @@
         <label class="theme-swatch-option">
           <input type="radio" name="theme_preset" value="custom" id="theme-custom-radio" {% if current_theme_key == 'custom' %}checked{% endif %}>
           <span class="theme-swatch theme-color-wheel-wrap">
-            <input type="color" name="custom_color" value="{{ business.theme_custom_color or '#BF8F02' }}"
+            <input type="color" name="custom_color" value="{{ business.theme_custom_color or '#F2CB36' }}"
                    onclick="document.getElementById('theme-custom-radio').checked = true;"
                    oninput="document.getElementById('theme-custom-radio').checked = true;">
           </span>

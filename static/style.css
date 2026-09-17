@@ -6,8 +6,8 @@
      (used only for backgrounds); --brand-solid is always a flat color (used
      for text/icons/borders, where a gradient isn't valid CSS). The "Enzi"
      wordmark (h1) deliberately does NOT use these — it stays brand gold. */
-  --brand-bg: #BF8F02;
-  --brand-solid: #BF8F02;
+  --brand-bg: #F2CB36;
+  --brand-solid: #F2CB36;
 }
 
 * {
@@ -43,7 +43,7 @@ h1 {
   font-size: 1.6rem;
   line-height: 1.25;
   margin: 0 0 4px;
-  color: #BF8F02;
+  color: #F2CB36;
 }
 
 .subtitle {
@@ -867,16 +867,16 @@ details.accordion > summary .qty-btn {
   padding: 4px 10px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #BF8F02;
+  color: #F2CB36;
   background: #fff;
-  border: 1px solid #BF8F02;
+  border: 1px solid #F2CB36;
   border-radius: 20px;
   cursor: pointer;
 }
 
 .lang-btn-active {
   color: #fff;
-  background: #BF8F02;
+  background: #F2CB36;
 }
 
 .bottom-nav {
@@ -1259,4 +1259,27 @@ details.accordion > summary .qty-btn {
   padding-top: 10px;
   padding-left: 0;
   padding-right: 0;
+}
+
+.admin-chooser-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.admin-chooser-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+  background: #fff;
+  border: 1px solid var(--brand-solid);
+  color: var(--brand-solid);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 32px 12px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1.1rem;
 }

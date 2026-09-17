@@ -698,9 +698,9 @@ def build_quantity_chart(history):
         f'<line x1="{pad_left}" y1="{pad_top + plot_height:.1f}" x2="{pad_left + plot_width:.1f}" '
         f'y2="{pad_top + plot_height:.1f}" stroke="#ccc" stroke-width="1" />'
     )
-    svg.append(f'<polyline points="{" ".join(points)}" fill="none" stroke="#BF8F02" stroke-width="2" />')
+    svg.append(f'<polyline points="{" ".join(points)}" fill="none" stroke="#F2CB36" stroke-width="2" />')
     for x, y, q in circles:
-        svg.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" fill="#BF8F02" />')
+        svg.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" fill="#F2CB36" />')
         svg.append(f'<text x="{x:.1f}" y="{y - 8:.1f}" font-size="10" text-anchor="middle" fill="#333">{q}</text>')
     for x, label in labels:
         svg.append(
@@ -827,9 +827,9 @@ def build_value_chart(snapshots):
         f'<line x1="{pad_left}" y1="{pad_top + plot_height:.1f}" x2="{pad_left + plot_width:.1f}" '
         f'y2="{pad_top + plot_height:.1f}" stroke="#ccc" stroke-width="1" />'
     )
-    svg.append(f'<polyline points="{" ".join(points)}" fill="none" stroke="#BF8F02" stroke-width="2" />')
+    svg.append(f'<polyline points="{" ".join(points)}" fill="none" stroke="#F2CB36" stroke-width="2" />')
     for x, y in circles:
-        svg.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="#BF8F02" />')
+        svg.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="#F2CB36" />')
     svg.append(
         f'<text x="{pad_left - 6:.1f}" y="{pad_top + 4:.1f}" font-size="9" text-anchor="end" fill="#777">'
         f'{max_v:,.0f}</text>'
@@ -856,7 +856,7 @@ LOW_STOCK_THRESHOLD = 5
 # anywhere CSS requires one (text, borders, icons) since gradients aren't
 # valid there. The Enzi wordmark itself never uses these — see style.css.
 THEME_PRESETS = {
-    "enzi_green": {"label": "Enzi Gold (default)", "bg": "#BF8F02", "solid": "#BF8F02"},
+    "enzi_green": {"label": "Enzi Gold (default)", "bg": "#F2CB36", "solid": "#F2CB36"},
     "ocean_blue": {"label": "Ocean Blue", "bg": "#2563eb", "solid": "#2563eb"},
     "sunset_orange": {"label": "Sunset Orange", "bg": "#ea580c", "solid": "#ea580c"},
     "royal_purple": {"label": "Royal Purple", "bg": "#7c3aed", "solid": "#7c3aed"},
@@ -1728,6 +1728,14 @@ def switch_user():
 def dismiss_low_stock_banner():
     session["low_stock_dismissed"] = True
     return redirect(url_for("index"))
+
+
+@app.route("/admin")
+def admin_chooser():
+    business_id = session.get("business_id")
+    if not business_id:
+        return redirect(url_for("enter_name"))
+    return render_template("admin_chooser.html")
 
 
 @app.route("/admin/business")

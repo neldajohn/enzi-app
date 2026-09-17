@@ -9,6 +9,8 @@ TRANSLATIONS = {
         "admin": "Admin",
         "business_admin": "Business admin",
         "personal_admin": "Personal admin",
+        "choice_business": "Business",
+        "choice_personal": "Personal",
         "greeting_morning": "Good morning",
         "greeting_afternoon": "Good afternoon",
         "greeting_evening": "Good evening",

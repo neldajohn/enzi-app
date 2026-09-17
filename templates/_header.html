@@ -15,12 +15,8 @@
     {% endif %}
   </div>
   <div class="header-right">
-    {% if user %}
-      <div class="greeting">{{ greeting }}, {{ user.first_name|titlecase }}</div>
-    {% endif %}
     <div class="header-links">
-      <a href="{{ url_for('business_admin') }}" class="switch-link">{{ t('business_admin') }}</a>
-      <a href="{{ url_for('personal_admin') }}" class="switch-link">{{ t('personal_admin') }}</a>
+      <a href="{{ url_for('admin_chooser') }}" class="switch-link">{{ t('admin') }}</a>
       <a href="{{ url_for('feedback') }}" class="switch-link">{{ t('send_feedback') }}</a>
     </div>
   </div>
