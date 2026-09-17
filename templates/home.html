@@ -13,6 +13,10 @@
   <main class="page page-with-bottom-nav">
     {% include '_header.html' %}
 
+    {% if user %}
+      <p class="home-greeting">{{ greeting }}, {{ user.first_name|titlecase }}</p>
+    {% endif %}
+
     {% if just_added %}
       <p class="message message-success">{{ just_added }}</p>
     {% endif %}

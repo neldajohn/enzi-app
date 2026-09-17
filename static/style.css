@@ -115,6 +115,13 @@ h1 {
   text-align: right;
 }
 
+.home-greeting {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #000;
+  margin: 0 0 12px;
+}
+
 .header-links {
   display: flex;
   gap: 10px;
@@ -1133,10 +1140,19 @@ details.accordion > summary .qty-btn {
   text-decoration: none;
 }
 
+.store-category-heading {
+  margin: 20px 0 10px;
+}
+
+.store-category-heading:first-of-type {
+  margin-top: 4px;
+}
+
 .store-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
+  margin-bottom: 8px;
 }
 
 .store-card {

@@ -1,5 +1,11 @@
-{% if theme %}
-<style>:root { --brand-bg: {{ theme.bg }}; --brand-solid: {{ theme.solid }}; }</style>
+{% if font and font.google_url and business and business.font_choice and business.font_choice != 'classic' %}
+<link rel="stylesheet" href="{{ font.google_url }}">
+{% endif %}
+{% if theme or font %}
+<style>:root {
+  {% if theme %}--brand-bg: {{ theme.bg }}; --brand-solid: {{ theme.solid }};{% endif %}
+  {% if font %}--font-heading: {{ font.heading }}; --font-body: {{ font.body }};{% endif %}
+}</style>
 {% endif %}
 <header class="topbar">
   <div class="header-brand">

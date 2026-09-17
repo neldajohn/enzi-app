@@ -21,27 +21,30 @@
     {% endif %}
 
     {% if items %}
-      <div class="store-grid">
-        {% for item in items %}
-          <a href="{{ url_for('store_item_detail', item_id=item.id) }}" class="store-card">
-            {% if item.photo_url %}
-              <img src="{{ item.photo_url }}" alt="{{ item.item_name }}" class="store-card-photo">
-            {% else %}
-              <div class="store-card-photo store-card-photo-placeholder">{{ t('no_photo') }}</div>
-            {% endif %}
-            <div class="store-card-body">
-              <span class="store-card-name">{{ item.item_name }}</span>
-              {% if item.item_type or item.item_color %}
-                <span class="item-code">{{ [item.item_type, item.item_color]|select|join(' · ') }}</span>
+      {% for category, group_items in items|groupby('item_type') %}
+        <h2 class="store-category-heading">{{ category if category else t('store_uncategorized') }}</h2>
+        <div class="store-grid">
+          {% for item in group_items %}
+            <a href="{{ url_for('store_item_detail', item_id=item.id) }}" class="store-card">
+              {% if item.photo_url %}
+                <img src="{{ item.photo_url }}" alt="{{ item.item_name }}" class="store-card-photo">
+              {% else %}
+                <div class="store-card-photo store-card-photo-placeholder">{{ t('no_photo') }}</div>
               {% endif %}
-              <span class="store-card-price">{{ "{:,.0f}".format(item.price_per_unit) }} TZS</span>
-              {% if not seller %}
-                <span class="item-code">{{ t('store_by_seller', seller=item.seller_name|titlecase) }}</span>
-              {% endif %}
-            </div>
-          </a>
-        {% endfor %}
-      </div>
+              <div class="store-card-body">
+                <span class="store-card-name">{{ item.item_name }}</span>
+                {% if item.item_color %}
+                  <span class="item-code">{{ item.item_color }}</span>
+                {% endif %}
+                <span class="store-card-price">{{ "{:,.0f}".format(item.price_per_unit) }} TZS</span>
+                {% if not seller %}
+                  <span class="item-code">{{ t('store_by_seller', seller=item.seller_name|titlecase) }}</span>
+                {% endif %}
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% endfor %}
     {% else %}
       <p class="empty-state">{{ t('store_empty_items') }}</p>
     {% endif %}

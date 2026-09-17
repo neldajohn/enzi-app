@@ -407,6 +407,20 @@ def init_db():
     db.execute("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS failed_login_locked_until TEXT")
     db.execute("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS failed_login_lockout_rounds INTEGER NOT NULL DEFAULT 0")
 
+    # Personal admin: a second phone field alongside the existing contact_whatsapp.
+    db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS work_number TEXT")
+
+    # Business contact details (separate from the buyer-facing storefront
+    # WhatsApp number, which stays in `whatsapp_number`).
+    db.execute("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS address TEXT")
+    db.execute("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS work_number TEXT")
+    db.execute("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS email TEXT")
+    db.execute("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS instagram_url TEXT")
+    db.execute("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS tiktok_url TEXT")
+
+    # Branding: font choice alongside the existing color theme.
+    db.execute("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS font_choice TEXT")
+
     db.commit()
     db.close()
 
@@ -569,17 +583,20 @@ app.jinja_env.globals["t"] = t
 
 @app.context_processor
 def inject_business():
-    """Makes `business`, `user`, `theme`, and `greeting` available to every
-    template automatically (for the persistent header and brand styling),
-    without every route needing to fetch and pass them."""
+    """Makes `business`, `user`, `theme`, `font`, and `greeting` available to
+    every template automatically (for the persistent header and brand
+    styling), without every route needing to fetch and pass them."""
     business_id = session.get("business_id")
     if not business_id:
-        return {"theme": get_theme(None)}
+        return {"theme": get_theme(None), "font": get_font(None)}
     db = get_db()
     business = db.execute("SELECT * FROM businesses WHERE id = ?", (business_id,)).fetchone()
     user_id = session.get("user_id")
     user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone() if user_id else None
-    return {"business": business, "user": user, "theme": get_theme(business), "greeting": time_based_greeting()}
+    return {
+        "business": business, "user": user, "theme": get_theme(business),
+        "font": get_font(business), "greeting": time_based_greeting(),
+    }
 
 
 def find_matching_item(db, business_id, item_name, item_type, item_color, item_brand, item_size, item_code):
@@ -879,6 +896,43 @@ def get_theme(business):
         return {"label": "Custom", "bg": color, "solid": color}
     key = (business["theme_preset"] if business else None) or DEFAULT_THEME_PRESET
     return THEME_PRESETS.get(key, THEME_PRESETS[DEFAULT_THEME_PRESET])
+
+
+# Curated heading+body font pairings a business can pick for their own admin
+# pages and storefront, alongside their color. "google_url" pulls in both
+# weights used across the app (500/600 for heading, 400/500 for body).
+FONT_PRESETS = {
+    "classic": {
+        "label": "Classic (default)",
+        "heading": "'Fraunces', Georgia, serif",
+        "body": "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        "google_url": "https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap",
+    },
+    "modern": {
+        "label": "Modern",
+        "heading": "'Poppins', -apple-system, sans-serif",
+        "body": "'Inter', -apple-system, sans-serif",
+        "google_url": "https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Inter:wght@400;500&display=swap",
+    },
+    "elegant": {
+        "label": "Elegant",
+        "heading": "'Playfair Display', Georgia, serif",
+        "body": "'Lato', -apple-system, sans-serif",
+        "google_url": "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Lato:wght@400;500&display=swap",
+    },
+    "friendly": {
+        "label": "Friendly",
+        "heading": "'Quicksand', -apple-system, sans-serif",
+        "body": "'Nunito', -apple-system, sans-serif",
+        "google_url": "https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600&family=Nunito:wght@400;500&display=swap",
+    },
+}
+DEFAULT_FONT_PRESET = "classic"
+
+
+def get_font(business):
+    key = (business["font_choice"] if business else None) or DEFAULT_FONT_PRESET
+    return FONT_PRESETS.get(key, FONT_PRESETS[DEFAULT_FONT_PRESET])
 
 
 def _require_business():
@@ -1756,8 +1810,9 @@ def business_admin():
     return render_template(
         "admin.html", business=business, users=users,
         theme_presets=THEME_PRESETS, current_theme_key=business["theme_preset"] or DEFAULT_THEME_PRESET,
+        font_presets=FONT_PRESETS, current_font_key=business["font_choice"] or DEFAULT_FONT_PRESET,
+        edit_branding=request.args.get("edit_branding") == "1",
         store_url=url_for("store_seller", business_id=business_id, _external=True),
-        marketplace_url=url_for("store_marketplace", _external=True),
         just_added=session.pop("just_added", None), error=session.pop("error", None),
     )
 
@@ -1833,9 +1888,13 @@ def update_branding():
         elif logo_error:
             session["error"] = logo_error
 
+    font_choice = request.form.get("font_choice", "").strip()
+    if font_choice not in FONT_PRESETS:
+        font_choice = business["font_choice"] or DEFAULT_FONT_PRESET
+
     db.execute(
-        "UPDATE businesses SET theme_preset = ?, theme_custom_color = ?, logo_url = ? WHERE id = ?",
-        (theme_preset, theme_custom_color, logo_url, business_id),
+        "UPDATE businesses SET theme_preset = ?, theme_custom_color = ?, logo_url = ?, font_choice = ? WHERE id = ?",
+        (theme_preset, theme_custom_color, logo_url, font_choice, business_id),
     )
     db.commit()
 
@@ -1843,8 +1902,8 @@ def update_branding():
     return redirect(url_for("business_admin"))
 
 
-@app.route("/admin/store-settings", methods=["POST"])
-def update_store_settings():
+@app.route("/admin/contact-details", methods=["POST"])
+def update_business_contact():
     business_id = session.get("business_id")
     if not business_id:
         return redirect(url_for("enter_name"))
@@ -1855,15 +1914,32 @@ def update_store_settings():
         session.clear()
         return redirect(url_for("enter_name"))
 
-    whatsapp_number = _clamp_text(request.form.get("whatsapp_number"), 30)
-    if not whatsapp_number:
+    address = _clamp_text(request.form.get("address"), 500)
+    work_number = _clamp_text(request.form.get("work_number"), 30)
+    mobile_number = _clamp_text(request.form.get("mobile_number"), 30)
+    email = _clamp_text(request.form.get("email"), 150)
+    instagram_url = _clamp_text(request.form.get("instagram_url"), 300)
+    tiktok_url = _clamp_text(request.form.get("tiktok_url"), 300)
+
+    if not mobile_number:
         session["error"] = t("err_business_whatsapp_required")
         return redirect(url_for("business_admin"))
-    if not _valid_phone(whatsapp_number):
+    if not _valid_phone(mobile_number) or not _valid_phone(work_number):
         session["error"] = t("err_phone_invalid")
         return redirect(url_for("business_admin"))
+    if not _valid_email(email):
+        session["error"] = t("err_email_invalid")
+        return redirect(url_for("business_admin"))
 
-    db.execute("UPDATE businesses SET whatsapp_number = ? WHERE id = ?", (whatsapp_number, business_id))
+    db.execute(
+        """
+        UPDATE businesses SET address = ?, work_number = ?, whatsapp_number = ?, email = ?,
+                               instagram_url = ?, tiktok_url = ?
+        WHERE id = ?
+        """,
+        (address or None, work_number or None, mobile_number, email or None,
+         instagram_url or None, tiktok_url or None, business_id),
+    )
     db.commit()
 
     session["just_added"] = t("msg_store_settings_updated")
@@ -1879,20 +1955,21 @@ def personal_admin():
 
     if request.method == "POST":
         contact_whatsapp = _clamp_text(request.form.get("contact_whatsapp"), 30)
+        work_number = _clamp_text(request.form.get("work_number"), 30)
         contact_email = _clamp_text(request.form.get("contact_email"), 150)
 
-        if not _valid_phone(contact_whatsapp):
+        if not _valid_phone(contact_whatsapp) or not _valid_phone(work_number):
             return render_template(
-                "personal_admin.html", user=user, error=t("err_phone_invalid"),
+                "personal_admin.html", user=user, error=t("err_phone_invalid"), editing=True,
             )
         if not _valid_email(contact_email):
             return render_template(
-                "personal_admin.html", user=user, error=t("err_email_invalid"),
+                "personal_admin.html", user=user, error=t("err_email_invalid"), editing=True,
             )
 
         db.execute(
-            "UPDATE users SET contact_whatsapp = ?, contact_email = ? WHERE id = ?",
-            (contact_whatsapp or None, contact_email or None, user["id"]),
+            "UPDATE users SET contact_whatsapp = ?, work_number = ?, contact_email = ? WHERE id = ?",
+            (contact_whatsapp or None, work_number or None, contact_email or None, user["id"]),
         )
         db.commit()
 
@@ -1901,6 +1978,7 @@ def personal_admin():
 
     return render_template(
         "personal_admin.html", user=user, error=None,
+        editing=request.args.get("edit") == "1",
         just_added=session.pop("just_added", None),
     )
 
@@ -3251,16 +3329,23 @@ def _storefront_items(business_id=None):
     if business_id:
         query += " AND i.business_id = ?"
         params = (business_id,)
-    query += " ORDER BY i.created_at DESC"
+    query += " ORDER BY COALESCE(NULLIF(TRIM(i.item_type), ''), 'zzz') ASC, i.created_at DESC"
     return get_db().execute(query, params).fetchall()
 
 
 def _get_storefront_item(db, item_id):
     return db.execute(
-        "SELECT i.*, b.business_name AS seller_name, b.id AS seller_id, b.whatsapp_number AS seller_whatsapp "
+        "SELECT i.*, b.business_name AS seller_name, b.id AS seller_id, b.whatsapp_number AS seller_whatsapp, "
+        "b.logo_url AS seller_logo_url "
         "FROM items i JOIN businesses b ON b.id = i.business_id WHERE i.id = ? AND i.is_deleted = 0",
         (item_id,),
     ).fetchone()
+
+
+def _get_storefront_item_seller(db, item):
+    """The item's full seller business row, for theme/font/logo — a second
+    lookup rather than joining every businesses column onto every item row."""
+    return db.execute("SELECT * FROM businesses WHERE id = ?", (item["seller_id"],)).fetchone()
 
 
 @app.route("/store")
@@ -3274,7 +3359,8 @@ def store_seller(business_id):
     if not seller:
         return redirect(url_for("store_marketplace"))
     return render_template(
-        "store_marketplace.html", items=_storefront_items(business_id), seller=seller, theme=get_theme(seller),
+        "store_marketplace.html", items=_storefront_items(business_id), seller=seller,
+        theme=get_theme(seller), font=get_font(seller),
     )
 
 
@@ -3284,7 +3370,11 @@ def store_item_detail(item_id):
     item = _get_storefront_item(db, item_id)
     if not item:
         return redirect(url_for("store_marketplace"))
-    return render_template("store_item_detail.html", item=item, available=available_to_sell(item))
+    seller = _get_storefront_item_seller(db, item)
+    return render_template(
+        "store_item_detail.html", item=item, available=available_to_sell(item), seller=seller,
+        theme=get_theme(seller), font=get_font(seller),
+    )
 
 
 @app.route("/store/item/<item_id>/ask", methods=["GET", "POST"])
@@ -3293,6 +3383,7 @@ def store_ask_seller(item_id):
     item = _get_storefront_item(db, item_id)
     if not item:
         return redirect(url_for("store_marketplace"))
+    seller = _get_storefront_item_seller(db, item)
 
     if request.method == "POST":
         buyer_question = _clamp_text(request.form.get("buyer_question"), 500)
@@ -3300,9 +3391,15 @@ def store_ask_seller(item_id):
             item=item_descriptor(item), price=format_price(item["price_per_unit"]), question=buyer_question,
         )
         wa_link = build_whatsapp_link(item["seller_whatsapp"], message)
-        return render_template("store_ask_seller.html", item=item, wa_link=wa_link, submitted=True)
+        return render_template(
+            "store_ask_seller.html", item=item, wa_link=wa_link, submitted=True, seller=seller,
+            theme=get_theme(seller), font=get_font(seller),
+        )
 
-    return render_template("store_ask_seller.html", item=item, wa_link=None, submitted=False)
+    return render_template(
+        "store_ask_seller.html", item=item, wa_link=None, submitted=False, seller=seller,
+        theme=get_theme(seller), font=get_font(seller),
+    )
 
 
 @app.route("/store/item/<item_id>/buy", methods=["GET", "POST"])
@@ -3311,6 +3408,8 @@ def store_buy_now(item_id):
     item = _get_storefront_item(db, item_id)
     if not item:
         return redirect(url_for("store_marketplace"))
+    seller = _get_storefront_item_seller(db, item)
+    seller_theme, seller_font = get_theme(seller), get_font(seller)
     available = available_to_sell(item)
 
     if request.method == "POST":
@@ -3335,7 +3434,10 @@ def store_buy_now(item_id):
             error = t("err_reserve_qty_available", avail=available, qty=quantity)
 
         if error:
-            return render_template("store_buy_now.html", item=item, available=available, error=error, wa_link=None)
+            return render_template(
+                "store_buy_now.html", item=item, available=available, error=error, wa_link=None,
+                seller=seller, theme=seller_theme, font=seller_font,
+            )
 
         now = datetime.now().isoformat(timespec="seconds")
         cursor = db.execute(
@@ -3350,7 +3452,7 @@ def store_buy_now(item_id):
                 return redirect(url_for("store_marketplace"))
             return render_template(
                 "store_buy_now.html", item=fresh_item, available=available_to_sell(fresh_item),
-                error=t("err_stock_changed_retry"), wa_link=None,
+                error=t("err_stock_changed_retry"), wa_link=None, seller=seller, theme=seller_theme, font=seller_font,
             )
 
         customer_key = buyer_name.strip().lower()
@@ -3395,10 +3497,13 @@ def store_buy_now(item_id):
         fresh_item = _get_storefront_item(db, item_id) or item
         return render_template(
             "store_buy_now.html", item=fresh_item, available=available_to_sell(fresh_item),
-            error=None, wa_link=wa_link, reserved=True,
+            error=None, wa_link=wa_link, reserved=True, seller=seller, theme=seller_theme, font=seller_font,
         )
 
-    return render_template("store_buy_now.html", item=item, available=available, error=None, wa_link=None)
+    return render_template(
+        "store_buy_now.html", item=item, available=available, error=None, wa_link=None,
+        seller=seller, theme=seller_theme, font=seller_font,
+    )
 
 
 # One-time demo utility: seeds a handful of fake stores/items so the buyer

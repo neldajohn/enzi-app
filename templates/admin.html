@@ -17,7 +17,7 @@
     <a href="{{ url_for('index') }}" class="switch-link arrow-link back-link">&larr; {{ t('back') }}</a>
 
     <div class="list-header">
-      <h2>{{ t('business_admin_title') }}</h2>
+      <h2>{{ t('admin_title') }}</h2>
       <a href="{{ url_for('switch_user') }}" class="switch-link">{{ t('log_out') }}</a>
     </div>
     <div class="view-toggle">
@@ -42,54 +42,6 @@
         </div>
         <span class="item-code store-link-text">{{ business.account_number }}</span>
       </div>
-    </div>
-
-    <h2>{{ t('section_branding') }}</h2>
-    <p class="subtitle">{{ t('branding_subtitle') }}</p>
-    <form method="POST" action="{{ url_for('update_branding') }}" class="card" enctype="multipart/form-data">
-      <label>{{ t('label_app_color') }}</label>
-      <div class="theme-swatch-grid">
-        {% for key, preset in theme_presets.items() %}
-          <label class="theme-swatch-option">
-            <input type="radio" name="theme_preset" value="{{ key }}" {% if key == current_theme_key %}checked{% endif %}>
-            <span class="theme-swatch" style="background: {{ preset.bg }};"></span>
-            <span class="theme-swatch-label">{{ preset.label }}</span>
-          </label>
-        {% endfor %}
-        <label class="theme-swatch-option">
-          <input type="radio" name="theme_preset" value="custom" id="theme-custom-radio" {% if current_theme_key == 'custom' %}checked{% endif %}>
-          <span class="theme-swatch theme-color-wheel-wrap">
-            <input type="color" name="custom_color" value="{{ business.theme_custom_color or '#F2CB36' }}"
-                   onclick="document.getElementById('theme-custom-radio').checked = true;"
-                   oninput="document.getElementById('theme-custom-radio').checked = true;">
-          </span>
-          <span class="theme-swatch-label">{{ t('custom_color_option') }}</span>
-        </label>
-      </div>
-
-      <label for="logo">{{ t('label_business_logo') }} <span class="optional">{{ t('optional') }}</span></label>
-      {% if business.logo_url %}
-        <img src="{{ business.logo_url }}" alt="" class="admin-logo-preview">
-      {% endif %}
-      <input type="file" id="logo" name="logo" accept="image/*" class="photo-file-input" hidden onchange="showPhotoFilename('logo')">
-      <div class="photo-buttons">
-        <button type="button" class="qty-btn" onclick="triggerPhotoInput('logo')">{{ t('add_photo') if not business.logo_url else t('change_photo') }}</button>
-      </div>
-      <span id="photo-filename-logo" class="item-code"></span>
-      <span class="hint">{{ t('logo_watermark_hint') }}</span>
-
-      <button type="submit">{{ t('save_branding') }}</button>
-    </form>
-
-    <h2>{{ t('section_store_settings') }}</h2>
-    <p class="subtitle">{{ t('store_settings_subtitle') }}</p>
-    <form method="POST" action="{{ url_for('update_store_settings') }}" class="card">
-      <label for="whatsapp_number">{{ t('label_business_whatsapp') }}</label>
-      <input type="tel" id="whatsapp_number" name="whatsapp_number" value="{{ business.whatsapp_number or '' }}" maxlength="30" required>
-      <button type="submit">{{ t('save_store_settings') }}</button>
-    </form>
-
-    <div class="item-list">
       <div class="item-row">
         <div class="item-main">
           <span class="item-name">{{ t('label_your_storefront_link') }}</span>
@@ -97,14 +49,6 @@
           <span class="item-code store-link-text" id="store-link-text">{{ store_url }}</span>
         </div>
         <button type="button" class="qty-btn" onclick="copyStoreLink('store-link-text', this)">{{ t('copy_link') }}</button>
-      </div>
-      <div class="item-row">
-        <div class="item-main">
-          <span class="item-name">{{ t('label_marketplace_link') }}</span>
-          <span class="item-code">{{ t('marketplace_link_hint') }}</span>
-          <span class="item-code store-link-text" id="marketplace-link-text">{{ marketplace_url }}</span>
-        </div>
-        <button type="button" class="qty-btn" onclick="copyStoreLink('marketplace-link-text', this)">{{ t('copy_link') }}</button>
       </div>
     </div>
     <script>
@@ -122,6 +66,104 @@
         }
       }
     </script>
+
+    <h2>{{ t('section_contact_details') }}</h2>
+    <p class="subtitle">{{ t('contact_details_subtitle') }}</p>
+    <form method="POST" action="{{ url_for('update_business_contact') }}" class="card">
+      <label>{{ t('label_business_name') }}</label>
+      <input type="text" value="{{ business.business_name|titlecase }}" disabled>
+
+      <label for="address">{{ t('label_business_address') }}</label>
+      <input type="text" id="address" name="address" value="{{ business.address or '' }}" maxlength="500">
+
+      <label for="work_number">{{ t('label_work_number') }}</label>
+      <input type="tel" id="work_number" name="work_number" value="{{ business.work_number or '' }}" maxlength="30">
+
+      <label for="mobile_number">{{ t('label_mobile_number') }}</label>
+      <input type="tel" id="mobile_number" name="mobile_number" value="{{ business.whatsapp_number or '' }}" maxlength="30" required>
+
+      <label for="email">{{ t('label_email_address') }}</label>
+      <input type="email" id="email" name="email" value="{{ business.email or '' }}" maxlength="150">
+
+      <label for="instagram_url">{{ t('label_instagram_link') }}</label>
+      <input type="text" id="instagram_url" name="instagram_url" value="{{ business.instagram_url or '' }}" maxlength="300">
+
+      <label for="tiktok_url">{{ t('label_tiktok_link') }}</label>
+      <input type="text" id="tiktok_url" name="tiktok_url" value="{{ business.tiktok_url or '' }}" maxlength="300">
+
+      <button type="submit">{{ t('save_contact_details') }}</button>
+    </form>
+
+    <h2>{{ t('section_branding') }}</h2>
+    {% if edit_branding %}
+      <p class="subtitle">{{ t('branding_subtitle') }}</p>
+      <form method="POST" action="{{ url_for('update_branding') }}" class="card" enctype="multipart/form-data">
+        <label>{{ t('label_app_color') }}</label>
+        <div class="theme-swatch-grid">
+          {% for key, preset in theme_presets.items() %}
+            <label class="theme-swatch-option">
+              <input type="radio" name="theme_preset" value="{{ key }}" {% if key == current_theme_key %}checked{% endif %}>
+              <span class="theme-swatch" style="background: {{ preset.bg }};"></span>
+              <span class="theme-swatch-label">{{ preset.label }}</span>
+            </label>
+          {% endfor %}
+          <label class="theme-swatch-option">
+            <input type="radio" name="theme_preset" value="custom" id="theme-custom-radio" {% if current_theme_key == 'custom' %}checked{% endif %}>
+            <span class="theme-swatch theme-color-wheel-wrap">
+              <input type="color" name="custom_color" value="{{ business.theme_custom_color or '#F2CB36' }}"
+                     onclick="document.getElementById('theme-custom-radio').checked = true;"
+                     oninput="document.getElementById('theme-custom-radio').checked = true;">
+            </span>
+            <span class="theme-swatch-label">{{ t('custom_color_option') }}</span>
+          </label>
+        </div>
+
+        <label for="font_choice">{{ t('label_font') }}</label>
+        <select id="font_choice" name="font_choice">
+          {% for key, preset in font_presets.items() %}
+            <option value="{{ key }}" {% if key == current_font_key %}selected{% endif %}>{{ preset.label }}</option>
+          {% endfor %}
+        </select>
+
+        <label for="logo">{{ t('label_business_logo') }} <span class="optional">{{ t('optional') }}</span></label>
+        {% if business.logo_url %}
+          <img src="{{ business.logo_url }}" alt="" class="admin-logo-preview">
+        {% endif %}
+        <input type="file" id="logo" name="logo" accept="image/*" class="photo-file-input" hidden onchange="showPhotoFilename('logo')">
+        <div class="photo-buttons">
+          <button type="button" class="qty-btn" onclick="triggerPhotoInput('logo')">{{ t('add_photo') if not business.logo_url else t('change_photo') }}</button>
+        </div>
+        <span id="photo-filename-logo" class="item-code"></span>
+        <span class="hint">{{ t('logo_watermark_hint') }}</span>
+
+        <div class="actions-row">
+          <a href="{{ url_for('business_admin') }}" class="qty-btn">{{ t('cancel') }}</a>
+          <button type="submit" class="qty-btn qty-btn-primary">{{ t('save_branding') }}</button>
+        </div>
+      </form>
+    {% else %}
+      <div class="item-list">
+        <div class="item-row">
+          <div class="item-main"><span class="item-name">{{ t('label_app_color') }}</span></div>
+          <div class="item-meta"><span class="theme-swatch" style="background: {{ theme.bg }};"></span></div>
+        </div>
+        <div class="item-row">
+          <div class="item-main"><span class="item-name">{{ t('label_font') }}</span></div>
+          <div class="item-meta"><span>{{ font.label }}</span></div>
+        </div>
+        <div class="item-row">
+          <div class="item-main"><span class="item-name">{{ t('label_business_logo') }}</span></div>
+          <div class="item-meta">
+            {% if business.logo_url %}
+              <img src="{{ business.logo_url }}" alt="" class="admin-logo-preview">
+            {% else %}
+              <span>—</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <a href="{{ url_for('business_admin', edit_branding=1) }}" class="btn-add-stock">{{ t('edit') }}</a>
+    {% endif %}
 
     <h2>{{ t('users_count_title', count=users|length) }}</h2>
 
@@ -143,20 +185,33 @@
     </details>
 
     {% if users %}
-      <div class="item-list">
-        {% for u in users %}
-          <div class="item-row">
-            <div class="item-main">
-              <span class="item-name">{{ u.first_name|titlecase }} {{ u.last_name|titlecase }}</span>
-              <span class="item-code">{{ t('status_active') if u.pin_hash else t('status_not_activated') }}</span>
-            </div>
-            <div class="item-meta">
-              <span>{{ t('joined_prefix', date=u.created_at|dt) }}</span>
-              <span>{{ t('last_login_prefix', date=(u.last_login_at|dt if u.last_login_at else t('never'))) }}</span>
+      {% for u in users %}
+        <details class="accordion">
+          <summary>
+            <span>{{ u.first_name|titlecase }} {{ u.last_name|titlecase }}</span>
+            <span class="qty-btn">{{ t('manage_btn') }}</span>
+          </summary>
+          <div class="accordion-body">
+            <div class="item-list">
+              <div class="item-row">
+                <div class="item-main"><span class="item-name">{{ t('label_your_name') }}</span></div>
+                <div class="item-meta"><span>{{ u.first_name|titlecase }} {{ u.last_name|titlecase }}</span></div>
+              </div>
+              <div class="item-row">
+                <div class="item-main"><span class="item-name">{{ t('label_access_level') }}</span></div>
+                <div class="item-meta"><span>{{ t('full_access') }}</span></div>
+              </div>
+              <div class="item-row">
+                <div class="item-main"><span class="item-name">{{ t('status_active') if u.pin_hash else t('status_not_activated') }}</span></div>
+                <div class="item-meta">
+                  <span>{{ t('joined_prefix', date=u.created_at|dt) }}</span>
+                  <span>{{ t('last_login_prefix', date=(u.last_login_at|dt if u.last_login_at else t('never'))) }}</span>
+                </div>
+              </div>
             </div>
           </div>
-        {% endfor %}
-      </div>
+        </details>
+      {% endfor %}
     {% else %}
       <p class="empty-state">{{ t('empty_no_users') }}</p>
     {% endif %}
