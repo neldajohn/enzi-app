@@ -439,6 +439,7 @@ h2 {
   padding: 6px 8px;
   border: 1px solid #ccc;
   border-radius: 6px;
+  font-family: var(--font-body);
   font-size: 0.85rem;
   background: #fff;
   color: #222;
@@ -518,64 +519,59 @@ h2 {
 
 .users-table {
   width: 100%;
-  min-width: 480px;
   border-collapse: collapse;
   background: #fff;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .users-table th,
 .users-table td {
-  padding: 12px 14px;
+  padding: 10px 8px;
   text-align: left;
-  white-space: nowrap;
+  vertical-align: top;
 }
 
 .users-table th {
   font-family: var(--font-heading);
   font-weight: 500;
   color: #666;
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   border-bottom: 1px solid #eee;
+  white-space: nowrap;
 }
 
 .users-table tbody tr:not(:last-child) td {
   border-bottom: 1px solid #f2f2f2;
 }
 
-.manage-dialog {
-  width: min(400px, calc(100vw - 48px));
-  border: none;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+.users-table-login-date,
+.users-table-login-time {
+  display: block;
+  white-space: nowrap;
 }
 
-.manage-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.4);
+.users-table-login-time {
+  color: #888;
+  font-size: 0.75rem;
 }
 
-.manage-dialog h3 {
-  font-family: var(--font-heading);
-  font-weight: 500;
-  font-size: 1.1rem;
-  margin: 0 0 14px;
+.users-table .col-manage {
+  text-align: right;
+  white-space: nowrap;
 }
 
-.manage-dialog .card {
-  margin-bottom: 14px;
+.users-table .col-manage .qty-btn {
+  min-width: 0;
+  padding: 7px 10px;
+  font-size: 0.72rem;
 }
 
 .remove-user-link {
   display: block;
   color: #a83232;
-  margin-bottom: 14px;
-}
-
-.manage-dialog-close {
-  width: 100%;
+  margin: 4px 0 14px;
 }
 
 .item-footer {
@@ -1173,18 +1169,19 @@ details.accordion > summary .qty-btn {
   position: relative;
   padding: 0;
   overflow: hidden;
+  background: conic-gradient(red, orange, yellow, lime, cyan, blue, magenta, red);
 }
 
 .theme-color-wheel-wrap input[type="color"] {
-  position: static;
-  opacity: 1;
-  display: block;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
   width: 100%;
   height: 100%;
   border: none;
   padding: 0;
+  margin: 0;
   cursor: pointer;
-  background: none;
 }
 
 .admin-logo-preview {

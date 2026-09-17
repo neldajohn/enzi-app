@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Edit Branding</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='photo-input.js') }}" defer></script>
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ t('section_branding') }}</h2>
+    </div>
+    <p class="subtitle">{{ t('branding_subtitle') }}</p>
+
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('edit_branding_page') }}" class="card" enctype="multipart/form-data">
+      <label>{{ t('label_app_color') }}</label>
+      <div class="theme-swatch-grid">
+        {% for key, preset in theme_presets.items() %}
+          <label class="theme-swatch-option">
+            <input type="radio" name="theme_preset" value="{{ key }}" {% if key == current_theme_key %}checked{% endif %}>
+            <span class="theme-swatch" style="background: {{ preset.solid }};"></span>
+            <span class="theme-swatch-label">{{ preset.label }}</span>
+          </label>
+        {% endfor %}
+        <label class="theme-swatch-option">
+          <input type="radio" name="theme_preset" value="custom" id="theme-custom-radio" {% if current_theme_key == 'custom' %}checked{% endif %}>
+          <span class="theme-swatch theme-color-wheel-wrap">
+            <input type="color" name="custom_color" value="{{ business.theme_custom_color or '#F2CB36' }}"
+                   onclick="document.getElementById('theme-custom-radio').checked = true;"
+                   oninput="document.getElementById('theme-custom-radio').checked = true;">
+          </span>
+          <span class="theme-swatch-label">{{ t('custom_color_option') }}</span>
+        </label>
+      </div>
+
+      <label for="font_choice">{{ t('label_font') }}</label>
+      <select id="font_choice" name="font_choice">
+        {% for key, preset in font_presets.items() %}
+          <option value="{{ key }}" {% if key == current_font_key %}selected{% endif %}>{{ preset.label }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="logo">{{ t('label_business_logo') }} <span class="optional">{{ t('optional') }}</span></label>
+      {% if business.logo_url %}
+        <img src="{{ business.logo_url }}" alt="" class="admin-logo-preview">
+      {% endif %}
+      <input type="file" id="logo" name="logo" accept="image/*" class="photo-file-input" hidden onchange="showPhotoFilename('logo')">
+      <div class="photo-buttons">
+        <button type="button" class="qty-btn" onclick="triggerPhotoInput('logo')">{{ t('add_photo') if not business.logo_url else t('change_photo') }}</button>
+      </div>
+      <span id="photo-filename-logo" class="item-code"></span>
+      <span class="hint">{{ t('logo_watermark_hint') }}</span>
+
+      <div class="actions-row">
+        <a href="{{ url_for('business_admin') }}" class="qty-btn">{{ t('cancel') }}</a>
+        <button type="submit" class="qty-btn qty-btn-primary">{{ t('save_branding') }}</button>
+      </div>
+    </form>
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

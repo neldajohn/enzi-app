@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Manage Team Member</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ target_user.first_name|titlecase }} {{ target_user.last_name|titlecase }}</h2>
+    </div>
+
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('update_user_access_level', user_id=target_user.id) }}" class="card">
+      <label for="access_level">{{ t('label_access_level') }}</label>
+      <select id="access_level" name="access_level">
+        {% for key, label_key in access_levels.items() %}
+          <option value="{{ key }}" {% if (target_user.access_level or 'full') == key %}selected{% endif %}>{{ t(label_key) }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">{{ t('save_changes') }}</button>
+    </form>
+
+    <a href="{{ url_for('remove_team_member', user_id=target_user.id) }}" class="switch-link remove-user-link">{{ t('remove_user_link') }}</a>
+    <a href="{{ url_for('business_admin') }}" class="switch-link">{{ t('cancel') }}</a>
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

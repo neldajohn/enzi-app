@@ -38,7 +38,7 @@
         <input type="text" value="{{ user.first_name|titlecase }} {{ user.last_name|titlecase }}" disabled>
 
         <label>{{ t('label_access_level') }}</label>
-        <input type="text" value="" disabled>
+        <input type="text" value="{{ t(access_levels.get(user.access_level, access_levels['full'])) }}" disabled>
 
         <label for="contact_whatsapp">{{ t('label_mobile_number') }}</label>
         <input type="tel" id="contact_whatsapp" name="contact_whatsapp" value="{{ user.contact_whatsapp or '' }}" placeholder="{{ t('ph_vendor_phone') }}" maxlength="30">
@@ -55,36 +55,26 @@
         </div>
       </form>
     {% else %}
-      <div class="item-list">
-        <div class="item-row">
-          <div class="item-main">
-            <span class="item-name">{{ t('label_your_name') }}</span>
-          </div>
-          <div class="item-meta"><span>{{ user.first_name|titlecase }} {{ user.last_name|titlecase }}</span></div>
+      <div class="plain-list">
+        <div class="plain-row">
+          <span class="item-name">{{ t('label_your_name') }}</span>
+          <span class="item-value">{{ user.first_name|titlecase }} {{ user.last_name|titlecase }}</span>
         </div>
-        <div class="item-row">
-          <div class="item-main">
-            <span class="item-name">{{ t('label_access_level') }}</span>
-          </div>
-          <div class="item-meta"><span>—</span></div>
+        <div class="plain-row">
+          <span class="item-name">{{ t('label_access_level') }}</span>
+          <span class="item-value">{{ t(access_levels.get(user.access_level, access_levels['full'])) }}</span>
         </div>
-        <div class="item-row">
-          <div class="item-main">
-            <span class="item-name">{{ t('label_mobile_number') }}</span>
-          </div>
-          <div class="item-meta"><span>{{ user.contact_whatsapp or '—' }}</span></div>
+        <div class="plain-row">
+          <span class="item-name">{{ t('label_mobile_number') }}</span>
+          <span class="item-value">{{ user.contact_whatsapp or '—' }}</span>
         </div>
-        <div class="item-row">
-          <div class="item-main">
-            <span class="item-name">{{ t('label_work_number') }}</span>
-          </div>
-          <div class="item-meta"><span>{{ user.work_number or '—' }}</span></div>
+        <div class="plain-row">
+          <span class="item-name">{{ t('label_work_number') }}</span>
+          <span class="item-value">{{ user.work_number or '—' }}</span>
         </div>
-        <div class="item-row">
-          <div class="item-main">
-            <span class="item-name">{{ t('label_email_address') }}</span>
-          </div>
-          <div class="item-meta"><span>{{ user.contact_email or '—' }}</span></div>
+        <div class="plain-row">
+          <span class="item-name">{{ t('label_email_address') }}</span>
+          <span class="item-value">{{ user.contact_email or '—' }}</span>
         </div>
       </div>
       <a href="{{ url_for('personal_admin', edit=1) }}" class="btn-add-stock">{{ t('edit') }}</a>

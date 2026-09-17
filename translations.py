@@ -395,6 +395,7 @@ TRANSLATIONS = {
         "access_level_agent": "Agent",
         "access_level_viewer": "Viewer",
         "msg_access_level_updated": "Access level updated.",
+        "col_access": "Access",
         "col_last_login": "Last login",
         "remove_user_link": "Remove from business",
         "remove_user_title": "Remove team member",

@@ -503,6 +503,26 @@ def format_datetime(value):
     return dt.strftime("%b %d, %Y %I:%M %p")
 
 
+def format_date(value):
+    if not value:
+        return value
+    try:
+        dt = datetime.fromisoformat(value)
+    except ValueError:
+        return value
+    return dt.strftime("%b %d, %Y")
+
+
+def format_time(value):
+    if not value:
+        return value
+    try:
+        dt = datetime.fromisoformat(value)
+    except ValueError:
+        return value
+    return dt.strftime("%I:%M %p")
+
+
 # Sellers are in Tanzania, but the server isn't necessarily — greetings are
 # computed against Tanzania's own clock (EAT, UTC+3, no DST) rather than
 # whatever timezone happens to be hosting the app.
@@ -576,6 +596,8 @@ def format_price(amount):
 
 app.jinja_env.filters["titlecase"] = title_case
 app.jinja_env.filters["dt"] = format_datetime
+app.jinja_env.filters["dt_date"] = format_date
+app.jinja_env.filters["dt_time"] = format_time
 
 
 def t(key, **kwargs):
@@ -902,21 +924,16 @@ def get_theme(business):
     return THEME_PRESETS.get(key, THEME_PRESETS[DEFAULT_THEME_PRESET])
 
 
-# Curated heading+body font pairings a business can pick for their own admin
-# pages and storefront, alongside their color. "google_url" pulls in both
-# weights used across the app (500/600 for heading, 400/500 for body).
+# Curated font choices a business can pick for their own admin pages and
+# storefront, alongside their color. Listed alphabetically by label to match
+# the order shown in the picker. "google_url" is None for system fonts that
+# don't need a webfont fetch.
 FONT_PRESETS = {
-    "classic": {
-        "label": "Classic (default)",
-        "heading": "'Fraunces', Georgia, serif",
-        "body": "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-        "google_url": "https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap",
-    },
-    "modern": {
-        "label": "Modern",
-        "heading": "'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif",
-        "body": "'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif",
-        "google_url": None,
+    "blobby": {
+        "label": "Blobby",
+        "heading": "'Sour Gummy', -apple-system, sans-serif",
+        "body": "'Sour Gummy', -apple-system, sans-serif",
+        "google_url": "https://fonts.googleapis.com/css2?family=Sour+Gummy&display=swap",
     },
     "business": {
         "label": "Business",
@@ -924,11 +941,53 @@ FONT_PRESETS = {
         "body": "'Inria Sans', -apple-system, sans-serif",
         "google_url": "https://fonts.googleapis.com/css2?family=Inria+Sans:wght@400;700&display=swap",
     },
+    "classic": {
+        "label": "Classic (default)",
+        "heading": "'Fraunces', Georgia, serif",
+        "body": "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        "google_url": "https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap",
+    },
+    "futuristic": {
+        "label": "Futuristic",
+        "heading": "'Asimovian', -apple-system, sans-serif",
+        "body": "'Asimovian', -apple-system, sans-serif",
+        "google_url": "https://fonts.googleapis.com/css2?family=Asimovian&display=swap",
+    },
+    "modern": {
+        "label": "Modern",
+        "heading": "'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif",
+        "body": "'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif",
+        "google_url": None,
+    },
     "playful": {
         "label": "Playful",
         "heading": "'Modern Antiqua', Georgia, serif",
         "body": "'Modern Antiqua', Georgia, serif",
         "google_url": "https://fonts.googleapis.com/css2?family=Modern+Antiqua&display=swap",
+    },
+    "rugged": {
+        "label": "Rugged",
+        "heading": "'Black Ops One', Georgia, serif",
+        "body": "'Black Ops One', Georgia, serif",
+        "google_url": "https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap",
+    },
+    "stencil": {
+        "label": "Stencil",
+        "heading": "'Stardos Stencil', Georgia, serif",
+        "body": "'Stardos Stencil', Georgia, serif",
+        "google_url": "https://fonts.googleapis.com/css2?family=Stardos+Stencil:wght@400;700&display=swap",
+    },
+    "studio": {
+        "label": "Studio",
+        "heading": "'Faculty Glyphic', -apple-system, sans-serif",
+        "body": "'Faculty Glyphic', -apple-system, sans-serif",
+        "google_url": "https://fonts.googleapis.com/css2?family=Faculty+Glyphic&display=swap",
+    },
+    "techno": {
+        "label": "Techno",
+        "heading": "'Orbitron', -apple-system, sans-serif",
+        "body": "'Orbitron', -apple-system, sans-serif",
+        "google_url": "https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap",
     },
 }
 DEFAULT_FONT_PRESET = "classic"
@@ -1822,10 +1881,7 @@ def business_admin():
 
     return render_template(
         "admin.html", business=business, users=users,
-        theme_presets=THEME_PRESETS, current_theme_key=business["theme_preset"] or DEFAULT_THEME_PRESET,
-        font_presets=FONT_PRESETS, current_font_key=business["font_choice"] or DEFAULT_FONT_PRESET,
         access_levels=ACCESS_LEVELS,
-        edit_branding=request.args.get("edit_branding") == "1",
         store_url=url_for("store_seller", business_id=business_id, _external=True),
         just_added=session.pop("just_added", None), error=session.pop("error", None),
     )
@@ -1867,6 +1923,25 @@ def add_team_member():
 
     session["just_added"] = t("msg_team_member_added", name=f"{first_name} {last_name}")
     return redirect(url_for("business_admin"))
+
+
+@app.route("/admin/users/<user_id>/manage")
+def manage_team_member(user_id):
+    business_id = session.get("business_id")
+    if not business_id:
+        return redirect(url_for("enter_name"))
+
+    db = get_db()
+    target_user = db.execute(
+        "SELECT * FROM users WHERE id = ? AND business_id = ?", (user_id, business_id)
+    ).fetchone()
+    if not target_user:
+        return redirect(url_for("business_admin"))
+
+    return render_template(
+        "manage_user.html", target_user=target_user, access_levels=ACCESS_LEVELS,
+        error=session.pop("error", None),
+    )
 
 
 @app.route("/admin/users/<user_id>/access-level", methods=["POST"])
@@ -1922,8 +1997,8 @@ def remove_team_member(user_id):
     return render_template("remove_user_confirm.html", target_user=target_user, error=None)
 
 
-@app.route("/admin/branding", methods=["POST"])
-def update_branding():
+@app.route("/admin/branding/edit", methods=["GET", "POST"])
+def edit_branding_page():
     business_id = session.get("business_id")
     if not business_id:
         return redirect(url_for("enter_name"))
@@ -1934,39 +2009,50 @@ def update_branding():
         session.clear()
         return redirect(url_for("enter_name"))
 
-    theme_preset = request.form.get("theme_preset", "").strip()
-    custom_color = request.form.get("custom_color", "").strip()
-    theme_custom_color = business["theme_custom_color"]
+    def render_form(error):
+        return render_template(
+            "branding_edit.html", business=business,
+            theme_presets=THEME_PRESETS, current_theme_key=business["theme_preset"] or DEFAULT_THEME_PRESET,
+            font_presets=FONT_PRESETS, current_font_key=business["font_choice"] or DEFAULT_FONT_PRESET,
+            error=error,
+        )
 
-    if theme_preset == "custom":
-        if not HEX_COLOR_RE.match(custom_color):
-            session["error"] = t("err_invalid_color")
-            return redirect(url_for("business_admin"))
-        theme_custom_color = custom_color
-    elif theme_preset not in THEME_PRESETS:
-        theme_preset = business["theme_preset"] or DEFAULT_THEME_PRESET
+    if request.method == "POST":
+        theme_preset = request.form.get("theme_preset", "").strip()
+        custom_color = request.form.get("custom_color", "").strip()
+        theme_custom_color = business["theme_custom_color"]
 
-    logo_url = business["logo_url"]
-    logo_file = request.files.get("logo")
-    if logo_file and logo_file.filename:
-        uploaded_url, logo_error = upload_photo_to_cloudinary(logo_file)
-        if uploaded_url:
-            logo_url = uploaded_url
-        elif logo_error:
+        if theme_preset == "custom":
+            if not HEX_COLOR_RE.match(custom_color):
+                return render_form(t("err_invalid_color"))
+            theme_custom_color = custom_color
+        elif theme_preset not in THEME_PRESETS:
+            theme_preset = business["theme_preset"] or DEFAULT_THEME_PRESET
+
+        logo_url = business["logo_url"]
+        logo_file = request.files.get("logo")
+        logo_error = None
+        if logo_file and logo_file.filename:
+            uploaded_url, logo_error = upload_photo_to_cloudinary(logo_file)
+            if uploaded_url:
+                logo_url = uploaded_url
+
+        font_choice = request.form.get("font_choice", "").strip()
+        if font_choice not in FONT_PRESETS:
+            font_choice = business["font_choice"] or DEFAULT_FONT_PRESET
+
+        db.execute(
+            "UPDATE businesses SET theme_preset = ?, theme_custom_color = ?, logo_url = ?, font_choice = ? WHERE id = ?",
+            (theme_preset, theme_custom_color, logo_url, font_choice, business_id),
+        )
+        db.commit()
+
+        session["just_added"] = t("msg_branding_updated")
+        if logo_error:
             session["error"] = logo_error
+        return redirect(url_for("business_admin"))
 
-    font_choice = request.form.get("font_choice", "").strip()
-    if font_choice not in FONT_PRESETS:
-        font_choice = business["font_choice"] or DEFAULT_FONT_PRESET
-
-    db.execute(
-        "UPDATE businesses SET theme_preset = ?, theme_custom_color = ?, logo_url = ?, font_choice = ? WHERE id = ?",
-        (theme_preset, theme_custom_color, logo_url, font_choice, business_id),
-    )
-    db.commit()
-
-    session["just_added"] = t("msg_branding_updated")
-    return redirect(url_for("business_admin"))
+    return render_form(None)
 
 
 @app.route("/admin/contact-details/edit", methods=["GET", "POST"])
@@ -2042,10 +2128,12 @@ def personal_admin():
         if not _valid_phone(contact_whatsapp) or not _valid_phone(work_number):
             return render_template(
                 "personal_admin.html", user=user, error=t("err_phone_invalid"), editing=True,
+                access_levels=ACCESS_LEVELS,
             )
         if not _valid_email(contact_email):
             return render_template(
                 "personal_admin.html", user=user, error=t("err_email_invalid"), editing=True,
+                access_levels=ACCESS_LEVELS,
             )
 
         db.execute(
@@ -2060,6 +2148,7 @@ def personal_admin():
     return render_template(
         "personal_admin.html", user=user, error=None,
         editing=request.args.get("edit") == "1",
+        access_levels=ACCESS_LEVELS,
         just_added=session.pop("just_added", None),
     )
 
