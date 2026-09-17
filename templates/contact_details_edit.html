@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzi — Edit Contact Details</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page page-with-bottom-nav">
+    {% include '_header.html' %}
+
+    <div class="list-header">
+      <h2>{{ t('section_contact_details') }}</h2>
+    </div>
+    <p class="subtitle">{{ t('contact_details_subtitle') }}</p>
+
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('edit_business_contact') }}" class="card">
+      <label>{{ t('label_business_name') }}</label>
+      <input type="text" value="{{ business.business_name|titlecase }}" disabled>
+
+      <label for="address">{{ t('label_business_address') }}</label>
+      <input type="text" id="address" name="address" value="{{ values.address or '' }}" maxlength="500">
+
+      <label for="work_number">{{ t('label_work_number') }}</label>
+      <input type="tel" id="work_number" name="work_number" value="{{ values.work_number or '' }}" maxlength="30">
+
+      <label for="mobile_number">{{ t('label_mobile_number') }}</label>
+      <input type="tel" id="mobile_number" name="mobile_number" value="{{ values.mobile_number or '' }}" maxlength="30" required autofocus>
+
+      <label for="email">{{ t('label_email_address') }}</label>
+      <input type="email" id="email" name="email" value="{{ values.email or '' }}" maxlength="150">
+
+      <label for="instagram_url">{{ t('label_instagram_link') }}</label>
+      <input type="text" id="instagram_url" name="instagram_url" value="{{ values.instagram_url or '' }}" maxlength="300">
+
+      <label for="tiktok_url">{{ t('label_tiktok_link') }}</label>
+      <input type="text" id="tiktok_url" name="tiktok_url" value="{{ values.tiktok_url or '' }}" maxlength="300">
+
+      <div class="actions-row">
+        <a href="{{ url_for('business_admin') }}" class="qty-btn">{{ t('cancel') }}</a>
+        <button type="submit" class="qty-btn qty-btn-primary">{{ t('save_contact_details') }}</button>
+      </div>
+    </form>
+  </main>
+  {% include '_bottom_nav.html' %}
+  <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+</body>
+</html>

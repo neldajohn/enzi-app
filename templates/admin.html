@@ -69,30 +69,37 @@
 
     <h2>{{ t('section_contact_details') }}</h2>
     <p class="subtitle">{{ t('contact_details_subtitle') }}</p>
-    <form method="POST" action="{{ url_for('update_business_contact') }}" class="card">
-      <label>{{ t('label_business_name') }}</label>
-      <input type="text" value="{{ business.business_name|titlecase }}" disabled>
-
-      <label for="address">{{ t('label_business_address') }}</label>
-      <input type="text" id="address" name="address" value="{{ business.address or '' }}" maxlength="500">
-
-      <label for="work_number">{{ t('label_work_number') }}</label>
-      <input type="tel" id="work_number" name="work_number" value="{{ business.work_number or '' }}" maxlength="30">
-
-      <label for="mobile_number">{{ t('label_mobile_number') }}</label>
-      <input type="tel" id="mobile_number" name="mobile_number" value="{{ business.whatsapp_number or '' }}" maxlength="30" required>
-
-      <label for="email">{{ t('label_email_address') }}</label>
-      <input type="email" id="email" name="email" value="{{ business.email or '' }}" maxlength="150">
-
-      <label for="instagram_url">{{ t('label_instagram_link') }}</label>
-      <input type="text" id="instagram_url" name="instagram_url" value="{{ business.instagram_url or '' }}" maxlength="300">
-
-      <label for="tiktok_url">{{ t('label_tiktok_link') }}</label>
-      <input type="text" id="tiktok_url" name="tiktok_url" value="{{ business.tiktok_url or '' }}" maxlength="300">
-
-      <button type="submit">{{ t('save_contact_details') }}</button>
-    </form>
+    <div class="item-list">
+      <div class="item-row">
+        <div class="item-main"><span class="item-name">{{ t('label_business_name') }}</span></div>
+        <div class="item-meta"><span>{{ business.business_name|titlecase }}</span></div>
+      </div>
+      <div class="item-row">
+        <div class="item-main"><span class="item-name">{{ t('label_business_address') }}</span></div>
+        <div class="item-meta"><span>{{ business.address or '—' }}</span></div>
+      </div>
+      <div class="item-row">
+        <div class="item-main"><span class="item-name">{{ t('label_work_number') }}</span></div>
+        <div class="item-meta"><span>{{ business.work_number or '—' }}</span></div>
+      </div>
+      <div class="item-row">
+        <div class="item-main"><span class="item-name">{{ t('label_mobile_number') }}</span></div>
+        <div class="item-meta"><span>{{ business.whatsapp_number or '—' }}</span></div>
+      </div>
+      <div class="item-row">
+        <div class="item-main"><span class="item-name">{{ t('label_email_address') }}</span></div>
+        <div class="item-meta"><span>{{ business.email or '—' }}</span></div>
+      </div>
+      <div class="item-row">
+        <div class="item-main"><span class="item-name">{{ t('label_instagram_link') }}</span></div>
+        <div class="item-meta"><span>{{ business.instagram_url or '—' }}</span></div>
+      </div>
+      <div class="item-row">
+        <div class="item-main"><span class="item-name">{{ t('label_tiktok_link') }}</span></div>
+        <div class="item-meta"><span>{{ business.tiktok_url or '—' }}</span></div>
+      </div>
+    </div>
+    <a href="{{ url_for('edit_business_contact') }}" class="btn-add-stock">{{ t('edit') }}</a>
 
     <h2>{{ t('section_branding') }}</h2>
     {% if edit_branding %}
@@ -197,9 +204,16 @@
                 <div class="item-main"><span class="item-name">{{ t('label_your_name') }}</span></div>
                 <div class="item-meta"><span>{{ u.first_name|titlecase }} {{ u.last_name|titlecase }}</span></div>
               </div>
-              <div class="item-row">
+              <div class="item-row access-level-row">
                 <div class="item-main"><span class="item-name">{{ t('label_access_level') }}</span></div>
-                <div class="item-meta"><span>{{ t('full_access') }}</span></div>
+                <form method="POST" action="{{ url_for('update_user_access_level', user_id=u.id) }}" class="access-level-form">
+                  <select name="access_level">
+                    {% for key, label_key in access_levels.items() %}
+                      <option value="{{ key }}" {% if (u.access_level or 'full') == key %}selected{% endif %}>{{ t(label_key) }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="qty-btn qty-btn-primary">{{ t('save_changes') }}</button>
+                </form>
               </div>
               <div class="item-row">
                 <div class="item-main"><span class="item-name">{{ t('status_active') if u.pin_hash else t('status_not_activated') }}</span></div>

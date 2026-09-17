@@ -4,7 +4,7 @@
 {% if theme or font %}
 <style>:root {
   {% if theme %}--brand-bg: {{ theme.bg }}; --brand-solid: {{ theme.solid }};{% endif %}
-  {% if font %}--font-heading: {{ font.heading }}; --font-body: {{ font.body }};{% endif %}
+  {% if font %}--font-heading: {{ font.heading|safe }}; --font-body: {{ font.body|safe }};{% endif %}
 }</style>
 {% endif %}
 <header class="topbar">

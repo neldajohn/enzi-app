@@ -116,8 +116,10 @@ h1 {
 }
 
 .home-greeting {
-  font-size: 1rem;
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
   font-weight: 500;
+  line-height: 1.3;
   color: #000;
   margin: 0 0 12px;
 }
@@ -482,6 +484,37 @@ h2 {
 
 .inline-form .qty-btn {
   width: 100%;
+}
+
+.access-level-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.access-level-row .item-main {
+  flex: 0 0 auto;
+}
+
+.access-level-form {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+}
+
+.access-level-form select {
+  flex: 1;
+  padding: 10px 12px;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #fff;
+  color: #222;
+}
+
+.access-level-form .qty-btn {
+  flex: 0 0 auto;
+  margin-top: 0;
 }
 
 .item-footer {

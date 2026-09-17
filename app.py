@@ -421,6 +421,10 @@ def init_db():
     # Branding: font choice alongside the existing color theme.
     db.execute("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS font_choice TEXT")
 
+    # Access level shown/edited under Business admin's Users section. Purely
+    # informational for now — it doesn't gate anything yet.
+    db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS access_level TEXT NOT NULL DEFAULT 'full'")
+
     db.commit()
     db.close()
 
@@ -910,24 +914,33 @@ FONT_PRESETS = {
     },
     "modern": {
         "label": "Modern",
-        "heading": "'Poppins', -apple-system, sans-serif",
-        "body": "'Inter', -apple-system, sans-serif",
-        "google_url": "https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Inter:wght@400;500&display=swap",
+        "heading": "'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif",
+        "body": "'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif",
+        "google_url": None,
     },
-    "elegant": {
-        "label": "Elegant",
-        "heading": "'Playfair Display', Georgia, serif",
-        "body": "'Lato', -apple-system, sans-serif",
-        "google_url": "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Lato:wght@400;500&display=swap",
+    "business": {
+        "label": "Business",
+        "heading": "'Inria Sans', -apple-system, sans-serif",
+        "body": "'Inria Sans', -apple-system, sans-serif",
+        "google_url": "https://fonts.googleapis.com/css2?family=Inria+Sans:wght@400;700&display=swap",
     },
-    "friendly": {
-        "label": "Friendly",
-        "heading": "'Quicksand', -apple-system, sans-serif",
-        "body": "'Nunito', -apple-system, sans-serif",
-        "google_url": "https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600&family=Nunito:wght@400;500&display=swap",
+    "playful": {
+        "label": "Playful",
+        "heading": "'Modern Antiqua', Georgia, serif",
+        "body": "'Modern Antiqua', Georgia, serif",
+        "google_url": "https://fonts.googleapis.com/css2?family=Modern+Antiqua&display=swap",
     },
 }
 DEFAULT_FONT_PRESET = "classic"
+
+# Access level shown/edited per user under Business admin's Users section.
+# Purely informational right now — none of these actually gate anything yet.
+ACCESS_LEVELS = {
+    "full": "access_level_full",
+    "agent": "access_level_agent",
+    "viewer": "access_level_viewer",
+}
+DEFAULT_ACCESS_LEVEL = "full"
 
 
 def get_font(business):
@@ -1811,6 +1824,7 @@ def business_admin():
         "admin.html", business=business, users=users,
         theme_presets=THEME_PRESETS, current_theme_key=business["theme_preset"] or DEFAULT_THEME_PRESET,
         font_presets=FONT_PRESETS, current_font_key=business["font_choice"] or DEFAULT_FONT_PRESET,
+        access_levels=ACCESS_LEVELS,
         edit_branding=request.args.get("edit_branding") == "1",
         store_url=url_for("store_seller", business_id=business_id, _external=True),
         just_added=session.pop("just_added", None), error=session.pop("error", None),
@@ -1852,6 +1866,30 @@ def add_team_member():
     db.commit()
 
     session["just_added"] = t("msg_team_member_added", name=f"{first_name} {last_name}")
+    return redirect(url_for("business_admin"))
+
+
+@app.route("/admin/users/<user_id>/access-level", methods=["POST"])
+def update_user_access_level(user_id):
+    business_id = session.get("business_id")
+    if not business_id:
+        return redirect(url_for("enter_name"))
+
+    db = get_db()
+    target_user = db.execute(
+        "SELECT id FROM users WHERE id = ? AND business_id = ?", (user_id, business_id)
+    ).fetchone()
+    if not target_user:
+        return redirect(url_for("business_admin"))
+
+    access_level = request.form.get("access_level", "").strip()
+    if access_level not in ACCESS_LEVELS:
+        access_level = DEFAULT_ACCESS_LEVEL
+
+    db.execute("UPDATE users SET access_level = ? WHERE id = ?", (access_level, user_id))
+    db.commit()
+
+    session["just_added"] = t("msg_access_level_updated")
     return redirect(url_for("business_admin"))
 
 
@@ -1902,8 +1940,8 @@ def update_branding():
     return redirect(url_for("business_admin"))
 
 
-@app.route("/admin/contact-details", methods=["POST"])
-def update_business_contact():
+@app.route("/admin/contact-details/edit", methods=["GET", "POST"])
+def edit_business_contact():
     business_id = session.get("business_id")
     if not business_id:
         return redirect(url_for("enter_name"))
@@ -1914,36 +1952,50 @@ def update_business_contact():
         session.clear()
         return redirect(url_for("enter_name"))
 
-    address = _clamp_text(request.form.get("address"), 500)
-    work_number = _clamp_text(request.form.get("work_number"), 30)
-    mobile_number = _clamp_text(request.form.get("mobile_number"), 30)
-    email = _clamp_text(request.form.get("email"), 150)
-    instagram_url = _clamp_text(request.form.get("instagram_url"), 300)
-    tiktok_url = _clamp_text(request.form.get("tiktok_url"), 300)
+    if request.method == "POST":
+        values = {
+            "address": _clamp_text(request.form.get("address"), 500),
+            "work_number": _clamp_text(request.form.get("work_number"), 30),
+            "mobile_number": _clamp_text(request.form.get("mobile_number"), 30),
+            "email": _clamp_text(request.form.get("email"), 150),
+            "instagram_url": _clamp_text(request.form.get("instagram_url"), 300),
+            "tiktok_url": _clamp_text(request.form.get("tiktok_url"), 300),
+        }
 
-    if not mobile_number:
-        session["error"] = t("err_business_whatsapp_required")
-        return redirect(url_for("business_admin"))
-    if not _valid_phone(mobile_number) or not _valid_phone(work_number):
-        session["error"] = t("err_phone_invalid")
-        return redirect(url_for("business_admin"))
-    if not _valid_email(email):
-        session["error"] = t("err_email_invalid")
+        if not values["mobile_number"]:
+            return render_template(
+                "contact_details_edit.html", business=business, values=values,
+                error=t("err_business_whatsapp_required"),
+            )
+        if not _valid_phone(values["mobile_number"]) or not _valid_phone(values["work_number"]):
+            return render_template(
+                "contact_details_edit.html", business=business, values=values, error=t("err_phone_invalid"),
+            )
+        if not _valid_email(values["email"]):
+            return render_template(
+                "contact_details_edit.html", business=business, values=values, error=t("err_email_invalid"),
+            )
+
+        db.execute(
+            """
+            UPDATE businesses SET address = ?, work_number = ?, whatsapp_number = ?, email = ?,
+                                   instagram_url = ?, tiktok_url = ?
+            WHERE id = ?
+            """,
+            (values["address"] or None, values["work_number"] or None, values["mobile_number"],
+             values["email"] or None, values["instagram_url"] or None, values["tiktok_url"] or None, business_id),
+        )
+        db.commit()
+
+        session["just_added"] = t("msg_business_contact_updated")
         return redirect(url_for("business_admin"))
 
-    db.execute(
-        """
-        UPDATE businesses SET address = ?, work_number = ?, whatsapp_number = ?, email = ?,
-                               instagram_url = ?, tiktok_url = ?
-        WHERE id = ?
-        """,
-        (address or None, work_number or None, mobile_number, email or None,
-         instagram_url or None, tiktok_url or None, business_id),
-    )
-    db.commit()
-
-    session["just_added"] = t("msg_store_settings_updated")
-    return redirect(url_for("business_admin"))
+    values = {
+        "address": business["address"], "work_number": business["work_number"],
+        "mobile_number": business["whatsapp_number"], "email": business["email"],
+        "instagram_url": business["instagram_url"], "tiktok_url": business["tiktok_url"],
+    }
+    return render_template("contact_details_edit.html", business=business, values=values, error=None)
 
 
 @app.route("/admin/personal", methods=["GET", "POST"])
