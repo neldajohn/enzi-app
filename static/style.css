@@ -923,6 +923,7 @@ details.accordion > summary .qty-btn {
 
 .view-toggle {
   display: flex;
+  width: fit-content;
   border: 1px solid #ccc;
   border-radius: 8px;
   overflow: hidden;
@@ -1261,25 +1262,3 @@ details.accordion > summary .qty-btn {
   padding-right: 0;
 }
 
-.admin-chooser-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.admin-chooser-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  text-decoration: none;
-  background: #fff;
-  border: 1px solid var(--brand-solid);
-  color: var(--brand-solid);
-  border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  padding: 32px 12px;
-  font-family: var(--font-heading);
-  font-weight: 600;
-  font-size: 1.1rem;
-}

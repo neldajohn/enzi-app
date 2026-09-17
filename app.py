@@ -1732,10 +1732,9 @@ def dismiss_low_stock_banner():
 
 @app.route("/admin")
 def admin_chooser():
-    business_id = session.get("business_id")
-    if not business_id:
-        return redirect(url_for("enter_name"))
-    return render_template("admin_chooser.html")
+    # Admin now opens straight into Business admin, with a toggle there
+    # (and on Personal admin) to switch between the two — no separate hub.
+    return redirect(url_for("business_admin"))
 
 
 @app.route("/admin/business")

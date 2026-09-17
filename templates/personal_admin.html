@@ -19,6 +19,10 @@
       <h2>{{ t('personal_admin_title') }}</h2>
       <a href="{{ url_for('switch_user') }}" class="switch-link">{{ t('log_out') }}</a>
     </div>
+    <div class="view-toggle">
+      <a href="{{ url_for('business_admin') }}" class="view-toggle-btn">{{ t('choice_business') }}</a>
+      <a href="{{ url_for('personal_admin') }}" class="view-toggle-btn active">{{ t('choice_personal') }}</a>
+    </div>
     <p class="subtitle">{{ t('personal_admin_subtitle') }}</p>
 
     {% if just_added %}
