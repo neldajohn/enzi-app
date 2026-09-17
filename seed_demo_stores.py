@@ -243,6 +243,30 @@ def seed_into(db):
 
         if existing:
             business_id = existing["id"]
+
+            # Repair pass: a prior interrupted run could have left the
+            # business without its "Test Test" login user (or with some
+            # other stray user) — make sure the expected one exists so
+            # logging in with the documented credentials actually works.
+            user_key = enzi_app.make_user_key(OWNER_FIRST, OWNER_LAST)
+            login_user = db.execute(
+                "SELECT id FROM users WHERE business_id = ? AND user_key = ?", (business_id, user_key)
+            ).fetchone()
+            if login_user:
+                user_id = login_user["id"]
+            else:
+                user_id = uuid.uuid4().hex
+                db.execute(
+                    """
+                    INSERT INTO users (id, business_id, user_key, first_name, last_name, pin_hash,
+                                        last_login_at, language, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (user_id, business_id, user_key, OWNER_FIRST, OWNER_LAST, generate_password_hash(PIN), now, "en", now),
+                )
+                db.commit()
+                results.append(f"Repaired missing login user for '{store['business_name']}'.")
+
             item_count = db.execute(
                 "SELECT count(*) AS c FROM items WHERE business_id = ? AND is_deleted = 0", (business_id,)
             ).fetchone()["c"]
@@ -251,9 +275,6 @@ def seed_into(db):
                 continue
             # Business exists but somehow has no items (e.g. a prior run got
             # cut off partway through) — top it up instead of leaving it empty.
-            user_id = db.execute(
-                "SELECT id FROM users WHERE business_id = ? LIMIT 1", (business_id,)
-            ).fetchone()["id"]
             for item in store["items"]:
                 enzi_app._create_new_item(
                     db, business_id, user_id, performed_by_name, store["location"],
