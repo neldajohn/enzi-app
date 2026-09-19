@@ -26,6 +26,9 @@
     {% if item.item_type or item.item_color %}
       <p class="item-code">{{ [item.item_type, item.item_color]|select|join(' · ') }}</p>
     {% endif %}
+    {% if item.item_size %}
+      <p class="item-code">{{ t('label_size') }}: {{ item.item_size }}{% if item.size_unit %} ({{ item.size_unit }}){% endif %}</p>
+    {% endif %}
     <p class="store-detail-price">{{ "{:,.0f}".format(item.price_per_unit) }} TZS</p>
     <p class="item-code">
       {% if available > 0 %}{{ t('store_item_available', avail=available) }}{% else %}{{ t('store_item_sold_out') }}{% endif %}

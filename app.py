@@ -433,6 +433,35 @@ def init_db():
     # (staff) reservations don't get an expiry.
     db.execute("ALTER TABLE reservations ADD COLUMN IF NOT EXISTS expires_at TEXT")
 
+    # Optional per-size quantity breakdown for an item (e.g. S/M/L), plus the
+    # unit its size(s) are measured in. An item with no rows here is just a
+    # regular single-size item — item_size stays a free-text summary either way.
+    db.execute("ALTER TABLE items ADD COLUMN IF NOT EXISTS size_unit TEXT")
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS item_sizes (
+            id TEXT PRIMARY KEY,
+            item_id TEXT NOT NULL,
+            size_label TEXT NOT NULL,
+            quantity INTEGER NOT NULL DEFAULT 0,
+            position INTEGER NOT NULL DEFAULT 0
+        )
+        """
+    )
+
+    # Up to 4 photos per item; photo_url on items stays as the primary/first
+    # photo for backward compatibility with every existing read path.
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS item_photos (
+            id TEXT PRIMARY KEY,
+            item_id TEXT NOT NULL,
+            photo_url TEXT NOT NULL,
+            position INTEGER NOT NULL DEFAULT 0
+        )
+        """
+    )
+
     db.commit()
     db.close()
 
@@ -902,6 +931,12 @@ def build_value_chart(snapshots):
 
 DEFAULT_LOW_STOCK_THRESHOLD = 2
 
+# Common measurement/size units offered alongside the free-text size field.
+SIZE_UNITS = [
+    "Litre", "Millilitre", "Kilogram", "Gram", "Centimetre", "Metre",
+    "Inch", "Feet", "Shoe size", "Small / Medium / Large", "XS-XXL",
+]
+
 # Curated per-business theme options. "bg" drives backgrounds (buttons, active
 # nav, etc.) and may be a gradient; "solid" is always a flat color, used
 # anywhere CSS requires one (text, borders, icons) since gradients aren't
@@ -1247,6 +1282,15 @@ def add_new_item_page():
     existing_items = db.execute(
         "SELECT * FROM items WHERE business_id = ? AND is_deleted = 0 ORDER BY item_name ASC", (business_id,)
     ).fetchall()
+    all_size_rows = db.execute(
+        "SELECT item_id, size_label, quantity FROM item_sizes WHERE item_id IN "
+        "(SELECT id FROM items WHERE business_id = ?) ORDER BY position ASC",
+        (business_id,),
+    ).fetchall()
+    sizes_by_item = {}
+    for row in all_size_rows:
+        sizes_by_item.setdefault(row["item_id"], []).append(row["size_label"])
+
     items_data = {
         item["id"]: {
             "item_name": item["item_name"],
@@ -1254,6 +1298,8 @@ def add_new_item_page():
             "item_type": item["item_type"] or "",
             "item_color": item["item_color"] or "",
             "item_size": item["item_size"] or "",
+            "size_unit": item["size_unit"] or "",
+            "existing_sizes": sizes_by_item.get(item["id"], []),
             "item_code": item["item_code"] or "",
             "location": item["location"] or "",
             "price_per_unit": item["price_per_unit"],
@@ -1281,6 +1327,7 @@ def add_new_item_page():
         item_colors=distinct_item_values(db, business_id, "item_color"),
         item_brands=distinct_item_values(db, business_id, "item_brand"),
         item_sizes=distinct_item_values(db, business_id, "item_size"),
+        size_units=SIZE_UNITS,
         default_location=business["default_location"],
         active_tab="items",
     )
@@ -2208,7 +2255,7 @@ def _add_quantity_to_item(db, item_id, business_id, user_id, performed_by_name, 
     )
     new_quantity = db.execute("SELECT quantity FROM items WHERE id = ?", (item_id,)).fetchone()["quantity"]
     record_item_history(db, item_id, business_id, "added", quantity, new_quantity, now, user_id, performed_by_name)
-    return t("msg_stock_increased", name=item_name, qty=new_quantity)
+    return t("msg_stock_increased", name=item_name, qty=new_quantity), item_id
 
 
 def _create_new_item(db, business_id, user_id, performed_by_name, default_location, *,
@@ -2231,7 +2278,7 @@ def _create_new_item(db, business_id, user_id, performed_by_name, default_locati
         ),
     )
     record_item_history(db, item_id, business_id, "added", quantity, quantity, now, user_id, performed_by_name)
-    return t("msg_added_to_stock", name=item_name)
+    return t("msg_added_to_stock", name=item_name), item_id
 
 
 def apply_stock_addition(db, business_id, user_id, performed_by_name, default_location, *,
@@ -2254,6 +2301,54 @@ def apply_stock_addition(db, business_id, user_id, performed_by_name, default_lo
     )
 
 
+def _apply_size_breakdown(db, item_id, size_labels, size_qtys, size_unit):
+    """Records a per-size quantity split (from the optional "multiple sizes"
+    entry on the add/restock form) additively against item_sizes, and keeps
+    item_size/size_unit on the item row in sync for every other read path
+    that just displays item.item_size as plain text. A no-op (besides saving
+    the unit) when the seller didn't use the multi-size breakdown."""
+    pairs = []
+    for label, qty_raw in zip(size_labels, size_qtys):
+        label = label.strip()
+        if not label:
+            continue
+        try:
+            qty = int(qty_raw)
+        except ValueError:
+            qty = 0
+        if qty <= 0:
+            continue
+        pairs.append((label, qty))
+
+    if not pairs:
+        db.execute("UPDATE items SET size_unit = ? WHERE id = ?", (size_unit or None, item_id))
+        return
+
+    next_position = db.execute(
+        "SELECT COALESCE(MAX(position), -1) + 1 AS next_pos FROM item_sizes WHERE item_id = ?", (item_id,)
+    ).fetchone()["next_pos"]
+
+    for label, qty in pairs:
+        existing_row = db.execute(
+            "SELECT id FROM item_sizes WHERE item_id = ? AND lower(size_label) = lower(?)",
+            (item_id, label),
+        ).fetchone()
+        if existing_row:
+            db.execute("UPDATE item_sizes SET quantity = quantity + ? WHERE id = ?", (qty, existing_row["id"]))
+        else:
+            db.execute(
+                "INSERT INTO item_sizes (id, item_id, size_label, quantity, position) VALUES (?, ?, ?, ?, ?)",
+                (uuid.uuid4().hex, item_id, label, qty, next_position),
+            )
+            next_position += 1
+
+    all_sizes = db.execute(
+        "SELECT size_label FROM item_sizes WHERE item_id = ? ORDER BY position ASC", (item_id,)
+    ).fetchall()
+    summary = ", ".join(r["size_label"] for r in all_sizes)
+    db.execute("UPDATE items SET item_size = ?, size_unit = ? WHERE id = ?", (summary, size_unit or None, item_id))
+
+
 @app.route("/add-item", methods=["POST"])
 def add_item():
     business_id = session.get("business_id")
@@ -2271,6 +2366,9 @@ def add_item():
     item_color = _clamp_text(request.form.get("item_color"), 150)
     item_brand = _clamp_text(request.form.get("item_brand"), 150)
     item_size = _clamp_text(request.form.get("item_size"), 150)
+    size_unit = _clamp_text(request.form.get("size_unit"), 50)
+    size_labels = request.form.getlist("size_label[]")
+    size_qtys = request.form.getlist("size_qty[]")
     item_code = _clamp_text(request.form.get("item_code"), 150)
     location = _clamp_text(request.form.get("location"), 150)
     quantity_raw = request.form.get("quantity", "").strip()
@@ -2309,6 +2407,16 @@ def add_item():
         session["error"] = t("err_price_too_large")
         return redirect(url_for("items_tab"))
 
+    size_labels_filled = [s for s in size_labels if s.strip()]
+    if size_labels_filled:
+        try:
+            size_total = sum(int(q) for q in size_qtys if q.strip())
+        except ValueError:
+            size_total = -1
+        if size_total != quantity:
+            session["error"] = t("err_size_breakdown_mismatch", total=max(size_total, 0), qty=quantity)
+            return redirect(url_for("items_tab"))
+
     photo_url = photo_url_carry or None
     photo_error = None
     if photo_file and photo_file.filename:
@@ -2343,25 +2451,27 @@ def add_item():
         return redirect(url_for("items_tab"))
 
     if picked_item and confirm_action == "create_new":
-        session["just_added"] = _create_new_item(
+        just_added, new_item_id = _create_new_item(
             db, business_id, user_id, performed_by_name, default_location,
             item_name=item_name, item_type=item_type, item_color=item_color, item_brand=item_brand,
             item_size=item_size, item_code=item_code, location=location, photo_url=photo_url,
             quantity=quantity, price_per_unit=price_per_unit, notes=notes, vendor_id=vendor_id,
         )
     elif picked_item:
-        session["just_added"] = _add_quantity_to_item(
+        just_added, new_item_id = _add_quantity_to_item(
             db, picked_item["id"], business_id, user_id, performed_by_name,
             quantity=quantity, price_per_unit=price_per_unit, location=location, photo_url=photo_url,
             vendor_id=vendor_id, item_name=item_name, default_location=default_location,
         )
     else:
-        session["just_added"] = apply_stock_addition(
+        just_added, new_item_id = apply_stock_addition(
             db, business_id, user_id, performed_by_name, default_location,
             item_name=item_name, item_type=item_type, item_color=item_color, item_brand=item_brand,
             item_size=item_size, item_code=item_code, location=location, photo_url=photo_url,
             quantity=quantity, price_per_unit=price_per_unit, notes=notes, vendor_id=vendor_id,
         )
+    session["just_added"] = just_added
+    _apply_size_breakdown(db, new_item_id, size_labels, size_qtys, size_unit)
 
     if photo_error:
         session["error"] = photo_error
@@ -2397,6 +2507,9 @@ def sell_item(item_id):
     performed_by_name = _current_user_name(db, user_id)
     available = available_to_sell(item)
     customers = db.execute("SELECT * FROM customers WHERE business_id = ? ORDER BY name ASC", (business_id,)).fetchall()
+    item_sizes = db.execute(
+        "SELECT * FROM item_sizes WHERE item_id = ? ORDER BY position ASC", (item_id,)
+    ).fetchall()
 
     reservation_id = request.values.get("reservation_id", "").strip() or None
     reservation = None
@@ -2418,6 +2531,11 @@ def sell_item(item_id):
         new_customer_whatsapp = request.form.get("new_customer_whatsapp", "").strip()
         sale_date_raw = request.form.get("sale_date", "").strip()
 
+        size_id = request.form.get("size_id", "").strip()
+        selected_size = None
+        if item_sizes:
+            selected_size = next((s for s in item_sizes if s["id"] == size_id), None)
+
         resolved_customer_id, customer_name, resolve_error = _resolve_customer(
             db, business_id, user_id, performed_by_name, customer_id_raw, new_customer_name, new_customer_whatsapp
         )
@@ -2432,8 +2550,12 @@ def sell_item(item_id):
         except ValueError:
             error = error or t("err_sell_numbers")
 
-        if error is None and quantity_sold <= 0:
+        if error is None and item_sizes and not selected_size:
+            error = t("err_size_required")
+        elif error is None and quantity_sold <= 0:
             error = t("err_sell_qty_min")
+        elif error is None and selected_size and quantity_sold > selected_size["quantity"]:
+            error = t("err_sell_qty_available", max=selected_size["quantity"], qty=quantity_sold)
         elif error is None and quantity_sold > max_sell:
             error = t("err_sell_qty_available", max=max_sell, qty=quantity_sold)
         elif error is None and quantity_sold > 100000:
@@ -2455,6 +2577,7 @@ def sell_item(item_id):
             return render_template(
                 "sell_item.html", item=item, error=error, today=date.today().isoformat(),
                 performed_by_name=performed_by_name, available=max_sell, reservation=reservation, customers=customers,
+                item_sizes=item_sizes,
             )
 
         now = datetime.now().isoformat(timespec="seconds")
@@ -2474,7 +2597,25 @@ def sell_item(item_id):
                 "sell_item.html", item=fresh_item, error=t("err_stock_changed_retry"),
                 today=date.today().isoformat(), performed_by_name=performed_by_name,
                 available=available_to_sell(fresh_item), reservation=reservation, customers=customers,
+                item_sizes=item_sizes,
             )
+        if selected_size:
+            size_cursor = db.execute(
+                "UPDATE item_sizes SET quantity = quantity - ? WHERE id = ? AND quantity >= ?",
+                (quantity_sold, selected_size["id"], quantity_sold),
+            )
+            if size_cursor.rowcount == 0:
+                db.rollback()
+                fresh_item = _get_owned_item(db, item_id, business_id) or item
+                fresh_sizes = db.execute(
+                    "SELECT * FROM item_sizes WHERE item_id = ? ORDER BY position ASC", (item_id,)
+                ).fetchall()
+                return render_template(
+                    "sell_item.html", item=fresh_item, error=t("err_stock_changed_retry"),
+                    today=date.today().isoformat(), performed_by_name=performed_by_name,
+                    available=available_to_sell(fresh_item), reservation=reservation, customers=customers,
+                    item_sizes=fresh_sizes,
+                )
         new_quantity = db.execute("SELECT quantity FROM items WHERE id = ?", (item_id,)).fetchone()["quantity"]
 
         sale_id = uuid.uuid4().hex
@@ -2507,6 +2648,7 @@ def sell_item(item_id):
     return render_template(
         "sell_item.html", item=item, error=None, today=date.today().isoformat(),
         performed_by_name=performed_by_name, available=max_sell, reservation=reservation, customers=customers,
+        item_sizes=item_sizes,
     )
 
 
@@ -3057,7 +3199,7 @@ def quick_add_incoming(incoming_id):
     performed_by_name = _current_user_name(db, user_id)
     default_location = business["default_location"] if business else None
 
-    session["just_added"] = apply_stock_addition(
+    just_added, _quick_add_item_id = apply_stock_addition(
         db, business_id, user_id, performed_by_name, default_location,
         item_name=incoming_item["item_name"], item_type=incoming_item["item_type"],
         item_color=incoming_item["item_color"], item_brand=incoming_item["item_brand"],
@@ -3066,6 +3208,7 @@ def quick_add_incoming(incoming_id):
         quantity=incoming_item["quantity"], price_per_unit=incoming_item["price_per_unit"],
         vendor_id=incoming_item["vendor_id"],
     )
+    session["just_added"] = just_added
     db.execute("DELETE FROM incoming_stock WHERE id = ?", (incoming_id,))
     record_inventory_value_snapshot(db, business_id)
     db.commit()

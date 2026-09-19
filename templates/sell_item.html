@@ -34,6 +34,16 @@
         <input type="hidden" name="reservation_id" value="{{ reservation.id }}">
       {% endif %}
 
+      {% if item_sizes %}
+        <label for="size_id">{{ t('label_which_size') }}</label>
+        <select id="size_id" name="size_id" required onchange="updateMaxForSize(this)">
+          <option value="" selected disabled>{{ t('select_a_size') }}</option>
+          {% for s in item_sizes %}
+            <option value="{{ s.id }}" data-available="{{ s.quantity }}" {% if s.quantity <= 0 %}disabled{% endif %}>{{ s.size_label }}{% if item.size_unit %} ({{ item.size_unit }}){% endif %} — {{ s.quantity }} {{ t('available_lowercase') }}</option>
+          {% endfor %}
+        </select>
+      {% endif %}
+
       <label for="quantity_sold">{{ t('label_quantity_sold') }}</label>
       <input type="number" id="quantity_sold" name="quantity_sold" value="{{ reservation.quantity if reservation }}" placeholder="e.g. 1" min="1" max="{{ [available, 100000]|min }}" inputmode="numeric" required>
 
@@ -63,5 +73,14 @@
   </main>
   {% include '_bottom_nav.html' %}
   <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
+  <script>
+    function updateMaxForSize(select) {
+      var opt = select.options[select.selectedIndex];
+      var avail = parseInt(opt.getAttribute('data-available'), 10) || 0;
+      var qtyInput = document.getElementById('quantity_sold');
+      qtyInput.max = avail;
+      if (parseInt(qtyInput.value, 10) > avail) qtyInput.value = avail;
+    }
+  </script>
 </body>
 </html>

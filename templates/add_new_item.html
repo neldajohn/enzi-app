@@ -57,7 +57,22 @@
           <input type="text" id="item_color" name="item_color" placeholder="{{ t('ph_item_color') }}" list="item-color-options" autocomplete="off" maxlength="150">
 
           <label for="item_size">{{ t('label_size') }} <span class="optional">{{ t('optional') }}</span></label>
-          <input type="text" id="item_size" name="item_size" placeholder="{{ t('ph_size') }}" list="item-size-options" autocomplete="off" maxlength="150">
+          <input type="text" id="item_size" name="item_size" placeholder="{{ t('ph_size') }}" list="item-size-options" autocomplete="off" maxlength="150" oninput="handleSizeInputChange()">
+
+          <label for="size_unit">{{ t('label_size_unit') }} <span class="optional">{{ t('optional') }}</span></label>
+          <select id="size_unit" name="size_unit">
+            <option value="">{{ t('select_no_unit') }}</option>
+            {% for u in size_units %}
+              <option value="{{ u }}">{{ u }}</option>
+            {% endfor %}
+          </select>
+
+          <button type="button" id="split-sizes-btn" class="qty-btn" onclick="splitIntoSizes()" hidden>{{ t('split_into_sizes_btn') }}</button>
+          <div id="size-breakdown-rows" hidden>
+            <span class="hint">{{ t('size_breakdown_hint') }}</span>
+            <div id="size-breakdown-rows-inner"></div>
+            <span id="size-breakdown-total" class="item-code"></span>
+          </div>
 
           <label for="item_code">{{ t('label_item_code') }} <span class="optional">{{ t('optional') }}</span></label>
           <input type="text" id="item_code" name="item_code" placeholder="{{ t('ph_item_code') }}" maxlength="150">
@@ -127,6 +142,7 @@
       document.getElementById('item_type').value = d.item_type;
       document.getElementById('item_color').value = d.item_color;
       document.getElementById('item_size').value = d.item_size;
+      document.getElementById('size_unit').value = d.size_unit || '';
       document.getElementById('item_code').value = d.item_code;
       document.getElementById('location').value = d.location;
       document.getElementById('price_per_unit').value = d.price_per_unit;
@@ -134,6 +150,14 @@
       document.getElementById('vendor_id').value = d.vendor_id;
       document.getElementById('quantity').value = '';
       document.getElementById('quantity').focus();
+
+      resetSizeBreakdown();
+      if (d.existing_sizes && d.existing_sizes.length > 0) {
+        document.getElementById('item_size').value = d.existing_sizes.join(', ');
+        buildSizeRows(d.existing_sizes);
+      } else {
+        handleSizeInputChange();
+      }
     }
 
     function clearPickIfNameChanged() {
@@ -145,6 +169,74 @@
         document.getElementById('existing_item_select').value = '';
       }
     }
+
+    function resetSizeBreakdown() {
+      document.getElementById('size-breakdown-rows-inner').innerHTML = '';
+      document.getElementById('size-breakdown-rows').hidden = true;
+      document.getElementById('split-sizes-btn').hidden = true;
+    }
+
+    function handleSizeInputChange() {
+      document.getElementById('size-breakdown-rows').hidden = true;
+      document.getElementById('size-breakdown-rows-inner').innerHTML = '';
+      var parts = document.getElementById('item_size').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+      document.getElementById('split-sizes-btn').hidden = parts.length < 2;
+    }
+
+    function splitIntoSizes() {
+      var parts = document.getElementById('item_size').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+      var seen = {};
+      var unique = [];
+      parts.forEach(function (p) {
+        var key = p.toLowerCase();
+        if (!seen[key]) { seen[key] = true; unique.push(p); }
+      });
+      buildSizeRows(unique);
+    }
+
+    function buildSizeRows(labels) {
+      var container = document.getElementById('size-breakdown-rows-inner');
+      container.innerHTML = '';
+      labels.forEach(function (label) {
+        var row = document.createElement('div');
+        row.className = 'size-breakdown-row';
+        var span = document.createElement('span');
+        span.className = 'item-name';
+        span.textContent = label;
+        var hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'size_label[]';
+        hidden.value = label;
+        var qty = document.createElement('input');
+        qty.type = 'number';
+        qty.name = 'size_qty[]';
+        qty.min = '0';
+        qty.max = '100000';
+        qty.inputMode = 'numeric';
+        qty.placeholder = '0';
+        qty.addEventListener('input', updateSizeBreakdownTotal);
+        row.appendChild(span);
+        row.appendChild(hidden);
+        row.appendChild(qty);
+        container.appendChild(row);
+      });
+      document.getElementById('size-breakdown-rows').hidden = labels.length === 0;
+      document.getElementById('split-sizes-btn').hidden = true;
+      updateSizeBreakdownTotal();
+    }
+
+    function updateSizeBreakdownTotal() {
+      var qtyInputs = document.querySelectorAll('#size-breakdown-rows-inner input[name="size_qty[]"]');
+      var allocated = 0;
+      qtyInputs.forEach(function (input) { allocated += parseInt(input.value, 10) || 0; });
+      var total = parseInt(document.getElementById('quantity').value, 10) || 0;
+      var label = document.getElementById('size-breakdown-total');
+      label.textContent = "{{ t('size_breakdown_total', allocated='__ALLOCATED__', total='__TOTAL__') }}"
+        .replace('__ALLOCATED__', allocated).replace('__TOTAL__', total);
+      label.style.color = (allocated === total) ? '#2a7d2a' : '#a83232';
+    }
+
+    document.getElementById('quantity').addEventListener('input', updateSizeBreakdownTotal);
   </script>
 </body>
 </html>
