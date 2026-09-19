@@ -2172,8 +2172,8 @@ def edit_business_contact():
     return render_template("contact_details_edit.html", business=business, values=values, error=None)
 
 
-@app.route("/admin/low-stock-threshold", methods=["POST"])
-def update_low_stock_threshold():
+@app.route("/admin/low-stock-threshold/edit", methods=["GET", "POST"])
+def edit_low_stock_threshold():
     business_id = session.get("business_id")
     if not business_id:
         return redirect(url_for("enter_name"))
@@ -2184,18 +2184,21 @@ def update_low_stock_threshold():
         session.clear()
         return redirect(url_for("enter_name"))
 
-    raw = request.form.get("low_stock_threshold", "").strip()
-    try:
-        threshold = int(raw)
-    except ValueError:
-        threshold = business["low_stock_threshold"]
-    threshold = max(0, min(threshold, 100000))
+    if request.method == "POST":
+        raw = request.form.get("low_stock_threshold", "").strip()
+        try:
+            threshold = int(raw)
+        except ValueError:
+            threshold = business["low_stock_threshold"]
+        threshold = max(0, min(threshold, 100000))
 
-    db.execute("UPDATE businesses SET low_stock_threshold = ? WHERE id = ?", (threshold, business_id))
-    db.commit()
+        db.execute("UPDATE businesses SET low_stock_threshold = ? WHERE id = ?", (threshold, business_id))
+        db.commit()
 
-    session["just_added"] = t("msg_low_stock_threshold_updated")
-    return redirect(url_for("business_admin"))
+        session["just_added"] = t("msg_low_stock_threshold_updated")
+        return redirect(url_for("business_admin"))
+
+    return render_template("low_stock_threshold_edit.html", business=business)
 
 
 @app.route("/admin/personal", methods=["GET", "POST"])
@@ -2309,7 +2312,7 @@ def _apply_size_breakdown(db, item_id, size_labels, size_qtys, size_unit):
     the unit) when the seller didn't use the multi-size breakdown."""
     pairs = []
     for label, qty_raw in zip(size_labels, size_qtys):
-        label = label.strip()
+        label = _clamp_text(label, 50)
         if not label:
             continue
         try:
@@ -2407,14 +2410,27 @@ def add_item():
         session["error"] = t("err_price_too_large")
         return redirect(url_for("items_tab"))
 
-    size_labels_filled = [s for s in size_labels if s.strip()]
+    size_pairs = list(zip(size_labels, size_qtys))
+    size_labels_filled = [label for label, _ in size_pairs if label.strip()]
     if size_labels_filled:
-        try:
-            size_total = sum(int(q) for q in size_qtys if q.strip())
-        except ValueError:
-            size_total = -1
+        size_total = 0
+        for label, qty_raw in size_pairs:
+            if not label.strip():
+                continue
+            qty_raw = qty_raw.strip()
+            if not qty_raw:
+                continue
+            try:
+                qty = int(qty_raw)
+            except ValueError:
+                session["error"] = t("err_size_breakdown_invalid")
+                return redirect(url_for("items_tab"))
+            if qty < 0:
+                session["error"] = t("err_size_breakdown_invalid")
+                return redirect(url_for("items_tab"))
+            size_total += qty
         if size_total != quantity:
-            session["error"] = t("err_size_breakdown_mismatch", total=max(size_total, 0), qty=quantity)
+            session["error"] = t("err_size_breakdown_mismatch", total=size_total, qty=quantity)
             return redirect(url_for("items_tab"))
 
     photo_url = photo_url_carry or None
@@ -3692,7 +3708,13 @@ def _storefront_items(business_id=None):
         query += " AND i.business_id = ?"
         params = (business_id,)
     query += " ORDER BY COALESCE(NULLIF(TRIM(i.item_type), ''), 'zzz') ASC, i.created_at DESC"
-    return get_db().execute(query, params).fetchall()
+    rows = get_db().execute(query, params).fetchall()
+    # Normalize NULL/blank item_type to "" (never None) so Jinja's groupby
+    # filter — which internally does `sorted(items, key=...)` — never has to
+    # compare two None values against each other, which raises TypeError.
+    for row in rows:
+        row["item_type"] = (row["item_type"] or "").strip()
+    return rows
 
 
 def _get_storefront_item(db, item_id):

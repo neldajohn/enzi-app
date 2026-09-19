@@ -56,8 +56,8 @@
           <label for="item_color">{{ t('label_item_color') }} <span class="optional">{{ t('optional') }}</span></label>
           <input type="text" id="item_color" name="item_color" placeholder="{{ t('ph_item_color') }}" list="item-color-options" autocomplete="off" maxlength="150">
 
-          <label for="item_size">{{ t('label_size') }} <span class="optional">{{ t('optional') }}</span></label>
-          <input type="text" id="item_size" name="item_size" placeholder="{{ t('ph_size') }}" list="item-size-options" autocomplete="off" maxlength="150" oninput="handleSizeInputChange()">
+          <label for="item_size" id="item_size_label">{{ t('label_size') }} <span class="optional">{{ t('optional') }}</span></label>
+          <input type="text" id="item_size" name="item_size" placeholder="{{ t('ph_size') }}" list="item-size-options" autocomplete="off" maxlength="150">
 
           <label for="size_unit">{{ t('label_size_unit') }} <span class="optional">{{ t('optional') }}</span></label>
           <select id="size_unit" name="size_unit">
@@ -67,11 +67,17 @@
             {% endfor %}
           </select>
 
-          <button type="button" id="split-sizes-btn" class="qty-btn" onclick="splitIntoSizes()" hidden>{{ t('split_into_sizes_btn') }}</button>
+          <button type="button" id="split-sizes-btn" class="qty-btn" onclick="startSizeBreakdown()">{{ t('split_into_sizes_btn') }}</button>
           <div id="size-breakdown-rows" hidden>
             <span class="hint">{{ t('size_breakdown_hint') }}</span>
+            <div id="size-breakdown-rows-header" class="size-breakdown-row size-breakdown-row-header">
+              <span class="item-code">{{ t('label_size') }}</span>
+              <span class="item-code">{{ t('label_quantity') }}</span>
+            </div>
             <div id="size-breakdown-rows-inner"></div>
+            <button type="button" class="qty-btn" onclick="addSizeRow()">{{ t('add_size_row_btn') }}</button>
             <span id="size-breakdown-total" class="item-code"></span>
+            <a href="javascript:void(0)" onclick="cancelSizeBreakdown()" class="switch-link">{{ t('use_single_size_instead') }}</a>
           </div>
 
           <label for="item_code">{{ t('label_item_code') }} <span class="optional">{{ t('optional') }}</span></label>
@@ -151,12 +157,11 @@
       document.getElementById('quantity').value = '';
       document.getElementById('quantity').focus();
 
-      resetSizeBreakdown();
+      cancelSizeBreakdown();
       if (d.existing_sizes && d.existing_sizes.length > 0) {
-        document.getElementById('item_size').value = d.existing_sizes.join(', ');
-        buildSizeRows(d.existing_sizes);
-      } else {
-        handleSizeInputChange();
+        startSizeBreakdown();
+        document.getElementById('size-breakdown-rows-inner').innerHTML = '';
+        d.existing_sizes.forEach(function (label) { addSizeRow(label); });
       }
     }
 
@@ -170,58 +175,59 @@
       }
     }
 
-    function resetSizeBreakdown() {
-      document.getElementById('size-breakdown-rows-inner').innerHTML = '';
-      document.getElementById('size-breakdown-rows').hidden = true;
+    function startSizeBreakdown() {
+      document.getElementById('item_size_label').style.display = 'none';
+      document.getElementById('item_size').style.display = 'none';
       document.getElementById('split-sizes-btn').hidden = true;
-    }
-
-    function handleSizeInputChange() {
-      document.getElementById('size-breakdown-rows').hidden = true;
+      document.getElementById('size-breakdown-rows').hidden = false;
       document.getElementById('size-breakdown-rows-inner').innerHTML = '';
-      var parts = document.getElementById('item_size').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
-      document.getElementById('split-sizes-btn').hidden = parts.length < 2;
+      addSizeRow();
+      addSizeRow();
     }
 
-    function splitIntoSizes() {
-      var parts = document.getElementById('item_size').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
-      var seen = {};
-      var unique = [];
-      parts.forEach(function (p) {
-        var key = p.toLowerCase();
-        if (!seen[key]) { seen[key] = true; unique.push(p); }
-      });
-      buildSizeRows(unique);
+    function cancelSizeBreakdown() {
+      document.getElementById('size-breakdown-rows-inner').innerHTML = '';
+      document.getElementById('size-breakdown-rows').hidden = true;
+      document.getElementById('item_size_label').style.display = '';
+      document.getElementById('item_size').style.display = '';
+      document.getElementById('split-sizes-btn').hidden = false;
     }
 
-    function buildSizeRows(labels) {
+    function addSizeRow(labelValue) {
       var container = document.getElementById('size-breakdown-rows-inner');
-      container.innerHTML = '';
-      labels.forEach(function (label) {
-        var row = document.createElement('div');
-        row.className = 'size-breakdown-row';
-        var span = document.createElement('span');
-        span.className = 'item-name';
-        span.textContent = label;
-        var hidden = document.createElement('input');
-        hidden.type = 'hidden';
-        hidden.name = 'size_label[]';
-        hidden.value = label;
-        var qty = document.createElement('input');
-        qty.type = 'number';
-        qty.name = 'size_qty[]';
-        qty.min = '0';
-        qty.max = '100000';
-        qty.inputMode = 'numeric';
-        qty.placeholder = '0';
-        qty.addEventListener('input', updateSizeBreakdownTotal);
-        row.appendChild(span);
-        row.appendChild(hidden);
-        row.appendChild(qty);
-        container.appendChild(row);
-      });
-      document.getElementById('size-breakdown-rows').hidden = labels.length === 0;
-      document.getElementById('split-sizes-btn').hidden = true;
+      var row = document.createElement('div');
+      row.className = 'size-breakdown-row';
+
+      var labelInput = document.createElement('input');
+      labelInput.type = 'text';
+      labelInput.name = 'size_label[]';
+      labelInput.placeholder = "{{ t('ph_size_row_label') }}";
+      labelInput.maxLength = 50;
+      if (labelValue) labelInput.value = labelValue;
+
+      var qtyInput = document.createElement('input');
+      qtyInput.type = 'number';
+      qtyInput.name = 'size_qty[]';
+      qtyInput.min = '0';
+      qtyInput.max = '100000';
+      qtyInput.inputMode = 'numeric';
+      qtyInput.placeholder = '0';
+      qtyInput.addEventListener('input', updateSizeBreakdownTotal);
+
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'size-row-remove';
+      removeBtn.textContent = '×';
+      removeBtn.setAttribute('aria-label', "{{ t('remove_size_row') }}");
+      removeBtn.onclick = function () {
+        row.remove();
+        updateSizeBreakdownTotal();
+      };
+
+      row.appendChild(labelInput);
+      row.appendChild(qtyInput);
+      row.appendChild(removeBtn);
+      container.appendChild(row);
       updateSizeBreakdownTotal();
     }
 

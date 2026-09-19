@@ -586,14 +586,47 @@ h2 {
 .size-breakdown-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   padding: 6px 0;
+}
+
+.size-breakdown-row input[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .size-breakdown-row input[type="number"] {
   width: 80px;
   flex: 0 0 auto;
+}
+
+.size-breakdown-row-header {
+  padding-bottom: 0;
+  justify-content: space-between;
+}
+
+.size-breakdown-row-header .item-code:first-child {
+  flex: 1 1 auto;
+}
+
+.size-breakdown-row-header .item-code:last-child {
+  width: 80px;
+  flex: 0 0 auto;
+}
+
+.size-row-remove {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  margin-top: 0;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: #fff;
+  color: #a83232;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .delete-link {

@@ -63,6 +63,15 @@ Currently in active user testing with a small group of real sellers. Feature-com
 - Returns handling
 - Swahili-language support
 - Barcode scanning / AI photo item-recognition
+- Multiple photos per item (up to 4), with a horizontal-scroll gallery on
+  the storefront item page (like Fashion Nova/Boohoo)
+- Photo-first add-item flow — upload the photo(s) first, see a preview
+  while filling in the rest of the item's details, with a simple
+  crop-before-upload step
+- "People" — merge Vendors and Customers into one section
+- "Trends" — a stats view of the business's own best-selling items over
+  time (not cross-business market trends, which would need data Enzi
+  doesn't have access to and raises its own privacy questions)
 
 ---
 
