@@ -66,6 +66,12 @@
       <label for="sale_date">{{ t('label_sale_date') }} <span class="optional">{{ t('optional_defaults_today') }}</span></label>
       <input type="date" id="sale_date" name="sale_date" max="{{ today }}">
 
+      <label class="checkbox-field">
+        <input type="checkbox" id="on_credit" name="on_credit" value="1" {% if on_credit %}checked{% endif %} onchange="toggleCreditHint(this)">
+        {{ t('label_on_credit') }}
+      </label>
+      <span class="hint" id="credit-hint" {% if not on_credit %}hidden{% endif %}>{{ t('on_credit_hint') }}</span>
+
       <button type="submit">{{ t('mark_as_sold_btn') }}</button>
     </form>
 
@@ -80,6 +86,9 @@
       var qtyInput = document.getElementById('quantity_sold');
       qtyInput.max = avail;
       if (parseInt(qtyInput.value, 10) > avail) qtyInput.value = avail;
+    }
+    function toggleCreditHint(checkbox) {
+      document.getElementById('credit-hint').hidden = !checkbox.checked;
     }
   </script>
 </body>

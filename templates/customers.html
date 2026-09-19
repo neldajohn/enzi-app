@@ -57,6 +57,7 @@
               <span class="item-name">{{ c.name }}</span>
               {% if c.whatsapp_number %}<span class="item-code">{{ c.whatsapp_number }}</span>{% endif %}
               {% if sale_counts.get(c.id) %}<span class="item-code">{{ t('customer_sales_count', count=sale_counts.get(c.id)) }}</span>{% endif %}
+              {% if debts_owed.get(c.id) %}<span class="item-code owed-badge">{{ t('customer_owes_badge', amount="{:,.0f}".format(debts_owed.get(c.id))) }}</span>{% endif %}
             </div>
           </a>
         {% endfor %}

@@ -25,6 +25,40 @@
     {% if customer.delivery_details %}<p class="subtitle">{{ t('label_delivery_details') }}: {{ customer.delivery_details }}</p>{% endif %}
     {% if customer.notes %}<p class="subtitle">{{ t('label_customer_notes') }}: {{ customer.notes }}</p>{% endif %}
 
+    {% if just_paid %}
+      <p class="message message-success">{{ just_paid }}</p>
+    {% endif %}
+    {% if error %}
+      <p class="message message-error">{{ error }}</p>
+    {% endif %}
+
+    <h2>{{ t('section_customer_debts') }} ({{ debts|length }})</h2>
+    {% if debts %}
+      <div class="item-list">
+        {% for debt in debts %}
+          <div class="item-row">
+            <div class="item-main">
+              <span class="item-name">{{ t('debt_status_paid') if debt.status == 'paid' else t('debt_status_open') }}</span>
+              <span class="item-code">{{ t('debt_original_prefix') }} {{ "{:,.0f}".format(debt.original_amount) }} TZS</span>
+              {% if debt.amount_paid > 0 %}<span class="item-code">{{ t('debt_paid_prefix') }} {{ "{:,.0f}".format(debt.amount_paid) }} TZS</span>{% endif %}
+              <span class="item-code">{{ debt.created_at|dt }}</span>
+            </div>
+            <div class="item-meta">
+              <span>{{ t('debt_remaining_prefix') }} {{ "{:,.0f}".format(debt.original_amount - debt.amount_paid) }} TZS</span>
+            </div>
+            {% if debt.status != 'paid' %}
+              <form method="POST" action="{{ url_for('record_debt_payment', customer_id=customer.id, debt_id=debt.id) }}" class="inline-form">
+                <input type="number" name="amount" placeholder="{{ t('ph_amount_paying') }}" min="0.01" max="{{ debt.original_amount - debt.amount_paid }}" step="0.01" inputmode="decimal" required>
+                <button type="submit">{{ t('btn_record_payment') }}</button>
+              </form>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('empty_no_customer_debts') }}</p>
+    {% endif %}
+
     <h2>{{ t('section_customer_sales') }} ({{ sales|length }})</h2>
     {% if sales %}
       <div class="item-list">

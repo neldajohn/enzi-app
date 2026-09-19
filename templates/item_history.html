@@ -52,8 +52,15 @@
       {% if item.location %}<div class="detail-row"><span class="detail-label">{{ t('label_location') }}</span><span>{{ item.location }}</span></div>{% endif %}
       {% if vendor %}<div class="detail-row"><span class="detail-label">{{ t('label_vendor') }}</span><span>{{ vendor.name }}</span></div>{% endif %}
       <div class="detail-row"><span class="detail-label">{{ t('label_price_per_unit') }}</span><span>{{ "{:,.0f}".format(item.price_per_unit) }} TZS</span></div>
+      {% if item.cost_per_unit is not none %}
+        <div class="detail-row"><span class="detail-label">{{ t('label_cost_per_unit') }}</span><span>{{ "{:,.0f}".format(item.cost_per_unit) }} TZS</span></div>
+        <div class="detail-row"><span class="detail-label">{{ t('label_margin_per_unit') }}</span><span>{{ "{:,.0f}".format(item.price_per_unit - item.cost_per_unit) }} TZS</span></div>
+      {% endif %}
       <div class="detail-row"><span class="detail-label">{{ t('label_quantity') }}</span><span>{{ item.quantity }}</span></div>
       {% if item.notes %}<div class="detail-row"><span class="detail-label">{{ t('label_notes') }}</span><span>{{ item.notes }}</span></div>{% endif %}
+      {% if sales and (item_profit_total > 0 or item_sales_missing_cost_count == 0) %}
+        <div class="detail-row"><span class="detail-label">{{ t('label_profit_to_date') }}</span><span>{{ "{:,.0f}".format(item_profit_total) }} TZS{% if item_sales_missing_cost_count > 0 %} <span class="hint">({{ t('profit_excludes_n_sales', count=item_sales_missing_cost_count) }})</span>{% endif %}</span></div>
+      {% endif %}
     </div>
 
     <p class="subtitle">{{ t('stock_level_over_time', qty=item.quantity) }}</p>

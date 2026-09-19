@@ -462,6 +462,48 @@ def init_db():
         """
     )
 
+    # Cost per unit, alongside the existing sale price, so profit can be
+    # computed. Optional — a business that doesn't track cost just never
+    # sees a profit figure. sales.cost_per_unit is a snapshot taken at the
+    # moment of sale so later cost changes don't rewrite past profit.
+    db.execute("ALTER TABLE items ADD COLUMN IF NOT EXISTS cost_per_unit REAL")
+    db.execute("ALTER TABLE sales ADD COLUMN IF NOT EXISTS cost_per_unit REAL")
+
+    # Customer credit ("deni") — a sale marked "pay later" creates a debt
+    # record for the amount owed, which the seller can record payments
+    # against (in full or in installments) until it's settled.
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS debts (
+            id TEXT PRIMARY KEY,
+            business_id TEXT NOT NULL,
+            customer_id TEXT,
+            customer_name TEXT NOT NULL,
+            customer_key TEXT NOT NULL,
+            sale_id TEXT,
+            original_amount REAL NOT NULL,
+            amount_paid REAL NOT NULL DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'open',
+            created_by_user_id TEXT,
+            created_by_name TEXT,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS debt_payments (
+            id TEXT PRIMARY KEY,
+            debt_id TEXT NOT NULL,
+            business_id TEXT NOT NULL,
+            amount REAL NOT NULL,
+            paid_at TEXT NOT NULL,
+            recorded_by_user_id TEXT,
+            recorded_by_name TEXT
+        )
+        """
+    )
+
     db.commit()
     db.close()
 
@@ -1138,6 +1180,18 @@ def index():
     all_sales = db.execute("SELECT * FROM sales WHERE business_id = ? ORDER BY sold_at DESC", (business_id,)).fetchall()
     recent_sales = all_sales[:5]
 
+    profit_total = sum(
+        (sale["sale_price"] - sale["cost_per_unit"]) * sale["quantity_sold"]
+        for sale in all_sales if sale["cost_per_unit"] is not None
+    )
+    sales_missing_cost_count = sum(1 for sale in all_sales if sale["cost_per_unit"] is None)
+
+    debt_totals = db.execute(
+        "SELECT COUNT(DISTINCT customer_key) AS customers, COALESCE(SUM(original_amount - amount_paid), 0) AS total "
+        "FROM debts WHERE business_id = ? AND status = 'open'",
+        (business_id,),
+    ).fetchone()
+
     reservations_count = db.execute(
         "SELECT count(*) AS c FROM reservations WHERE business_id = ? AND status = 'active'", (business_id,)
     ).fetchone()["c"]
@@ -1164,6 +1218,10 @@ def index():
         items_sold_count=sum(sale["quantity_sold"] for sale in all_sales),
         grand_total=grand_total,
         recent_sales=recent_sales,
+        profit_total=profit_total,
+        sales_missing_cost_count=sales_missing_cost_count,
+        debt_customers_count=debt_totals["customers"],
+        debt_total_owed=debt_totals["total"],
         value_chart_svg=value_chart_svg,
         value_range=value_range_param,
         value_start_date=value_start_param,
@@ -1331,6 +1389,7 @@ def add_new_item_page():
             "item_code": item["item_code"] or "",
             "location": item["location"] or "",
             "price_per_unit": item["price_per_unit"],
+            "cost_per_unit": item["cost_per_unit"] or "",
             "vendor_id": item["vendor_id"] or "",
             "notes": item["notes"] or "",
         }
@@ -1544,9 +1603,18 @@ def customers_tab():
             (business["id"],),
         ).fetchall()
     }
+    debts_owed = {
+        row["customer_id"]: row["owed"]
+        for row in db.execute(
+            "SELECT customer_id, SUM(original_amount - amount_paid) AS owed FROM debts "
+            "WHERE business_id = ? AND customer_id IS NOT NULL AND status = 'open' GROUP BY customer_id",
+            (business["id"],),
+        ).fetchall()
+    }
     return render_template(
         "customers.html", business=business, user=user, customers=customers, sale_counts=sale_counts,
-        active_tab="customers", just_added=session.pop("just_added", None), error=session.pop("error", None),
+        debts_owed=debts_owed, active_tab="customers", just_added=session.pop("just_added", None),
+        error=session.pop("error", None),
     )
 
 
@@ -1611,11 +1679,66 @@ def customer_detail(customer_id):
         "SELECT * FROM restocks WHERE business_id = ? AND customer_id = ? ORDER BY created_at DESC",
         (business["id"], customer_id),
     ).fetchall()
+    debts = db.execute(
+        "SELECT * FROM debts WHERE business_id = ? AND customer_id = ? ORDER BY created_at DESC",
+        (business["id"], customer_id),
+    ).fetchall()
 
     return render_template(
         "customer_detail.html", business=business, user=user, customer=customer, sales=sales,
-        active_reservations=active_reservations, pending_restocks=pending_restocks, active_tab="customers",
+        active_reservations=active_reservations, pending_restocks=pending_restocks, debts=debts,
+        active_tab="customers", just_paid=session.pop("just_paid", None), error=session.pop("error", None),
     )
+
+
+@app.route("/customers/<customer_id>/debts/<debt_id>/pay", methods=["POST"])
+def record_debt_payment(customer_id, debt_id):
+    business, user, bounce = _require_business()
+    if bounce:
+        return bounce
+    db = get_db()
+    debt = db.execute(
+        "SELECT * FROM debts WHERE id = ? AND business_id = ? AND customer_id = ?",
+        (debt_id, business["id"], customer_id),
+    ).fetchone()
+    if not debt:
+        return redirect(url_for("customer_detail", customer_id=customer_id))
+
+    remaining = debt["original_amount"] - debt["amount_paid"]
+    amount_raw = request.form.get("amount", "").strip()
+    try:
+        amount = float(amount_raw)
+    except ValueError:
+        session["error"] = t("err_sell_numbers")
+        return redirect(url_for("customer_detail", customer_id=customer_id))
+
+    if amount <= 0:
+        session["error"] = t("err_payment_amount_min")
+        return redirect(url_for("customer_detail", customer_id=customer_id))
+    if amount > remaining + 0.01:
+        session["error"] = t("err_payment_exceeds_debt", remaining="{:,.0f}".format(remaining))
+        return redirect(url_for("customer_detail", customer_id=customer_id))
+
+    performed_by_name = f"{user['first_name']} {user['last_name']}"
+    now = datetime.now().isoformat(timespec="seconds")
+    new_amount_paid = debt["amount_paid"] + amount
+    new_status = "paid" if new_amount_paid >= debt["original_amount"] - 0.01 else "open"
+
+    db.execute(
+        "UPDATE debts SET amount_paid = ?, status = ? WHERE id = ?",
+        (new_amount_paid, new_status, debt_id),
+    )
+    db.execute(
+        """
+        INSERT INTO debt_payments (id, debt_id, business_id, amount, paid_at, recorded_by_user_id, recorded_by_name)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (uuid.uuid4().hex, debt_id, business["id"], amount, now, user["id"], performed_by_name),
+    )
+    db.commit()
+
+    session["just_paid"] = t("msg_payment_recorded", amount="{:,.0f}".format(amount))
+    return redirect(url_for("customer_detail", customer_id=customer_id))
 
 
 @app.route("/customers/<customer_id>/edit", methods=["GET", "POST"])
@@ -2270,7 +2393,8 @@ def personal_admin():
 
 
 def _add_quantity_to_item(db, item_id, business_id, user_id, performed_by_name, *,
-                           quantity, price_per_unit, location, photo_url, vendor_id, item_name, default_location=None):
+                           quantity, price_per_unit, location, photo_url, vendor_id, item_name, default_location=None,
+                           cost_per_unit=None):
     now = datetime.now().isoformat(timespec="seconds")
     item = _get_owned_item(db, item_id, business_id)
     new_location = location or item["location"] or default_location
@@ -2279,10 +2403,12 @@ def _add_quantity_to_item(db, item_id, business_id, user_id, performed_by_name, 
     db.execute(
         """
         UPDATE items SET quantity = quantity + ?, price_per_unit = ?, location = ?, photo_url = ?,
-                          last_added_by_user_id = ?, last_added_by_name = ?, updated_at = ?, vendor_id = ?
+                          last_added_by_user_id = ?, last_added_by_name = ?, updated_at = ?, vendor_id = ?,
+                          cost_per_unit = COALESCE(?, cost_per_unit)
         WHERE id = ?
         """,
-        (quantity, price_per_unit, new_location, new_photo_url, user_id, performed_by_name, now, new_vendor_id, item_id),
+        (quantity, price_per_unit, new_location, new_photo_url, user_id, performed_by_name, now, new_vendor_id,
+         cost_per_unit, item_id),
     )
     new_quantity = db.execute("SELECT quantity FROM items WHERE id = ?", (item_id,)).fetchone()["quantity"]
     record_item_history(db, item_id, business_id, "added", quantity, new_quantity, now, user_id, performed_by_name)
@@ -2291,20 +2417,20 @@ def _add_quantity_to_item(db, item_id, business_id, user_id, performed_by_name, 
 
 def _create_new_item(db, business_id, user_id, performed_by_name, default_location, *,
                       item_name, item_type, item_color, item_brand, item_size, item_code,
-                      location, photo_url, quantity, price_per_unit, notes=None, vendor_id=None):
+                      location, photo_url, quantity, price_per_unit, notes=None, vendor_id=None, cost_per_unit=None):
     now = datetime.now().isoformat(timespec="seconds")
     item_id = uuid.uuid4().hex
     new_location = location or default_location
     db.execute(
         """
         INSERT INTO items (id, business_id, item_name, item_type, item_color, item_brand, item_size, item_code, location, photo_url,
-                            quantity, reserved_quantity, price_per_unit, created_by_user_id, created_by_name,
+                            quantity, reserved_quantity, price_per_unit, cost_per_unit, created_by_user_id, created_by_name,
                             last_added_by_user_id, last_added_by_name, is_deleted, notes, vendor_id, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
         """,
         (
             item_id, business_id, item_name, item_type or None, item_color or None, item_brand or None, item_size or None,
-            item_code or None, new_location, photo_url, quantity, price_per_unit, user_id, performed_by_name,
+            item_code or None, new_location, photo_url, quantity, price_per_unit, cost_per_unit, user_id, performed_by_name,
             user_id, performed_by_name, notes or None, vendor_id, now, now,
         ),
     )
@@ -2314,21 +2440,21 @@ def _create_new_item(db, business_id, user_id, performed_by_name, default_locati
 
 def apply_stock_addition(db, business_id, user_id, performed_by_name, default_location, *,
                           item_name, item_type, item_color, item_brand, item_size, item_code,
-                          location, photo_url, quantity, price_per_unit, notes=None, vendor_id=None):
+                          location, photo_url, quantity, price_per_unit, notes=None, vendor_id=None, cost_per_unit=None):
     existing_item = find_matching_item(db, business_id, item_name, item_type, item_color, item_brand, item_size, item_code)
 
     if existing_item:
         return _add_quantity_to_item(
             db, existing_item["id"], business_id, user_id, performed_by_name,
             quantity=quantity, price_per_unit=price_per_unit, location=location, photo_url=photo_url,
-            vendor_id=vendor_id, item_name=item_name, default_location=default_location,
+            vendor_id=vendor_id, item_name=item_name, default_location=default_location, cost_per_unit=cost_per_unit,
         )
 
     return _create_new_item(
         db, business_id, user_id, performed_by_name, default_location,
         item_name=item_name, item_type=item_type, item_color=item_color, item_brand=item_brand,
         item_size=item_size, item_code=item_code, location=location, photo_url=photo_url,
-        quantity=quantity, price_per_unit=price_per_unit, notes=notes, vendor_id=vendor_id,
+        quantity=quantity, price_per_unit=price_per_unit, notes=notes, vendor_id=vendor_id, cost_per_unit=cost_per_unit,
     )
 
 
@@ -2404,6 +2530,7 @@ def add_item():
     location = _clamp_text(request.form.get("location"), 150)
     quantity_raw = request.form.get("quantity", "").strip()
     price_raw = request.form.get("price_per_unit", "").strip()
+    cost_raw = request.form.get("cost_per_unit", "").strip()
     notes = _clamp_text(request.form.get("notes"), 1000)
     photo_file = request.files.get("photo")
     photo_url_carry = request.form.get("photo_url_carry", "").strip()
@@ -2437,6 +2564,20 @@ def add_item():
     if price_per_unit > 500000000:
         session["error"] = t("err_price_too_large")
         return redirect(url_for("items_tab"))
+
+    cost_per_unit = None
+    if cost_raw:
+        try:
+            cost_per_unit = float(cost_raw)
+        except ValueError:
+            session["error"] = t("err_cost_invalid")
+            return redirect(url_for("items_tab"))
+        if cost_per_unit < 0:
+            session["error"] = t("err_cost_invalid")
+            return redirect(url_for("items_tab"))
+        if cost_per_unit > 500000000:
+            session["error"] = t("err_price_too_large")
+            return redirect(url_for("items_tab"))
 
     size_pairs = list(zip(size_labels, size_qtys))
     size_labels_filled = [label for label, _ in size_pairs if label.strip()]
@@ -2481,7 +2622,7 @@ def add_item():
             form_data=dict(
                 item_name=item_name, item_type=item_type, item_color=item_color, item_brand=item_brand,
                 item_size=item_size, item_code=item_code, location=location, quantity=quantity,
-                price_per_unit=price_per_unit, notes=notes, vendor_id=vendor_id_raw,
+                price_per_unit=price_per_unit, cost_per_unit=cost_raw, notes=notes, vendor_id=vendor_id_raw,
                 new_vendor_name=new_vendor_name, new_vendor_phone=new_vendor_phone, new_vendor_email=new_vendor_email,
                 existing_item_id=existing_item_id, photo_url_carry=photo_url or "",
             ),
@@ -2500,12 +2641,14 @@ def add_item():
             item_name=item_name, item_type=item_type, item_color=item_color, item_brand=item_brand,
             item_size=item_size, item_code=item_code, location=location, photo_url=photo_url,
             quantity=quantity, price_per_unit=price_per_unit, notes=notes, vendor_id=vendor_id,
+            cost_per_unit=cost_per_unit,
         )
     elif picked_item:
         just_added, new_item_id = _add_quantity_to_item(
             db, picked_item["id"], business_id, user_id, performed_by_name,
             quantity=quantity, price_per_unit=price_per_unit, location=location, photo_url=photo_url,
             vendor_id=vendor_id, item_name=item_name, default_location=default_location,
+            cost_per_unit=cost_per_unit,
         )
     else:
         just_added, new_item_id = apply_stock_addition(
@@ -2513,6 +2656,7 @@ def add_item():
             item_name=item_name, item_type=item_type, item_color=item_color, item_brand=item_brand,
             item_size=item_size, item_code=item_code, location=location, photo_url=photo_url,
             quantity=quantity, price_per_unit=price_per_unit, notes=notes, vendor_id=vendor_id,
+            cost_per_unit=cost_per_unit,
         )
     session["just_added"] = just_added
     _apply_size_breakdown(db, new_item_id, size_labels, size_qtys, size_unit)
@@ -2574,6 +2718,7 @@ def sell_item(item_id):
         new_customer_name = request.form.get("new_customer_name", "").strip()
         new_customer_whatsapp = request.form.get("new_customer_whatsapp", "").strip()
         sale_date_raw = request.form.get("sale_date", "").strip()
+        on_credit = request.form.get("on_credit") == "1"
 
         size_id = request.form.get("size_id", "").strip()
         selected_size = None
@@ -2594,7 +2739,9 @@ def sell_item(item_id):
         except ValueError:
             error = error or t("err_sell_numbers")
 
-        if error is None and item_sizes and not selected_size:
+        if error is None and on_credit and not customer_name:
+            error = t("err_credit_needs_customer")
+        elif error is None and item_sizes and not selected_size:
             error = t("err_size_required")
         elif error is None and quantity_sold <= 0:
             error = t("err_sell_qty_min")
@@ -2621,7 +2768,7 @@ def sell_item(item_id):
             return render_template(
                 "sell_item.html", item=item, error=error, today=date.today().isoformat(),
                 performed_by_name=performed_by_name, available=max_sell, reservation=reservation, customers=customers,
-                item_sizes=item_sizes,
+                item_sizes=item_sizes, on_credit=on_credit,
             )
 
         now = datetime.now().isoformat(timespec="seconds")
@@ -2641,7 +2788,7 @@ def sell_item(item_id):
                 "sell_item.html", item=fresh_item, error=t("err_stock_changed_retry"),
                 today=date.today().isoformat(), performed_by_name=performed_by_name,
                 available=available_to_sell(fresh_item), reservation=reservation, customers=customers,
-                item_sizes=item_sizes,
+                item_sizes=item_sizes, on_credit=on_credit,
             )
         if selected_size:
             size_cursor = db.execute(
@@ -2658,20 +2805,20 @@ def sell_item(item_id):
                     "sell_item.html", item=fresh_item, error=t("err_stock_changed_retry"),
                     today=date.today().isoformat(), performed_by_name=performed_by_name,
                     available=available_to_sell(fresh_item), reservation=reservation, customers=customers,
-                    item_sizes=fresh_sizes,
+                    item_sizes=fresh_sizes, on_credit=on_credit,
                 )
         new_quantity = db.execute("SELECT quantity FROM items WHERE id = ?", (item_id,)).fetchone()["quantity"]
 
         sale_id = uuid.uuid4().hex
         db.execute(
             """
-            INSERT INTO sales (id, business_id, item_id, item_name, quantity_sold, sale_price, customer_name,
-                                customer_key, customer_id, sold_by_user_id, sold_by_name, sold_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO sales (id, business_id, item_id, item_name, quantity_sold, sale_price, cost_per_unit,
+                                customer_name, customer_key, customer_id, sold_by_user_id, sold_by_name, sold_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                sale_id, business_id, item_id, item["item_name"], quantity_sold, sale_price, customer_name,
-                customer_name.strip().lower(), resolved_customer_id, user_id, performed_by_name, sold_at,
+                sale_id, business_id, item_id, item["item_name"], quantity_sold, sale_price, item["cost_per_unit"],
+                customer_name, customer_name.strip().lower(), resolved_customer_id, user_id, performed_by_name, sold_at,
             ),
         )
         record_item_history(db, item_id, business_id, "sold", -quantity_sold, new_quantity, sold_at, user_id, performed_by_name)
@@ -2683,6 +2830,19 @@ def sell_item(item_id):
             )
             db.execute("UPDATE reservations SET status = 'sold' WHERE id = ?", (reservation["id"],))
 
+        if on_credit:
+            db.execute(
+                """
+                INSERT INTO debts (id, business_id, customer_id, customer_name, customer_key, sale_id,
+                                    original_amount, amount_paid, status, created_by_user_id, created_by_name, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'open', ?, ?, ?)
+                """,
+                (
+                    uuid.uuid4().hex, business_id, resolved_customer_id, customer_name, customer_name.strip().lower(),
+                    sale_id, sale_price * quantity_sold, user_id, performed_by_name, sold_at,
+                ),
+            )
+
         record_inventory_value_snapshot(db, business_id)
         db.commit()
 
@@ -2692,7 +2852,7 @@ def sell_item(item_id):
     return render_template(
         "sell_item.html", item=item, error=None, today=date.today().isoformat(),
         performed_by_name=performed_by_name, available=max_sell, reservation=reservation, customers=customers,
-        item_sizes=item_sizes,
+        item_sizes=item_sizes, on_credit=False,
     )
 
 
@@ -3332,6 +3492,12 @@ def item_history(item_id):
 
     chart_svg = build_quantity_chart(history)
 
+    item_profit_total = sum(
+        (sale["sale_price"] - sale["cost_per_unit"]) * sale["quantity_sold"]
+        for sale in sales if sale["cost_per_unit"] is not None
+    )
+    item_sales_missing_cost_count = sum(1 for sale in sales if sale["cost_per_unit"] is None)
+
     return render_template(
         "item_history.html",
         item=item,
@@ -3340,6 +3506,8 @@ def item_history(item_id):
         history=list(reversed(history)),
         chart_svg=chart_svg,
         avail=available_to_sell(item),
+        item_profit_total=item_profit_total,
+        item_sales_missing_cost_count=item_sales_missing_cost_count,
     )
 
 
@@ -3682,13 +3850,14 @@ def export_csv():
     writer = csv.writer(output)
     writer.writerow([
         "Item name", "Brand", "Type", "Color", "Size", "Code", "Location", "Quantity",
-        "Reserved", "Available", "Price per unit", "Line total", "Notes", "Last added by", "Last updated",
+        "Reserved", "Available", "Price per unit", "Cost per unit", "Line total", "Notes", "Last added by", "Last updated",
     ])
     for item in items:
         writer.writerow([
             item["item_name"], item["item_brand"] or "", item["item_type"] or "", item["item_color"] or "",
             item["item_size"] or "", item["item_code"] or "", item["location"] or "", item["quantity"],
             item["reserved_quantity"], available_to_sell(item), item["price_per_unit"],
+            item["cost_per_unit"] if item["cost_per_unit"] is not None else "",
             item["quantity"] * item["price_per_unit"], item["notes"] or "", item["last_added_by_name"] or "",
             item["updated_at"],
         ])

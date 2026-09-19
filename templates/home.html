@@ -27,8 +27,14 @@
       <p class="message message-error">{{ error }}</p>
     {% endif %}
 
-    {% if (low_stock_count > 0 and not low_stock_dismissed) or pending_reservations_count > 0 or overdue_incoming_count > 0 %}
+    {% if (low_stock_count > 0 and not low_stock_dismissed) or pending_reservations_count > 0 or overdue_incoming_count > 0 or debt_total_owed > 0 %}
       <div class="snapshot-banner">
+        {% if debt_total_owed > 0 %}
+          <div class="snapshot-line">
+            <span>{{ t('debt_summary_banner', count=debt_customers_count, plural=('' if debt_customers_count == 1 else 's'), amount="{:,.0f}".format(debt_total_owed)) }}</span>
+            <a href="{{ url_for('customers_tab') }}" class="snapshot-view-link">{{ t('view') }}</a>
+          </div>
+        {% endif %}
         {% if low_stock_count > 0 and not low_stock_dismissed %}
           <form method="POST" action="{{ url_for('dismiss_low_stock_banner') }}" class="inline-form snapshot-dismiss-form">
             <button type="submit" class="snapshot-dismiss" aria-label="Dismiss">×</button>
@@ -71,6 +77,15 @@
         <span class="dashboard-stat-value">{{ items_sold_count }}</span>
         <span class="dashboard-stat-label">{{ t('items_sold_count') }}</span>
       </div>
+      {% if profit_total > 0 or sales_missing_cost_count == 0 %}
+        <div class="dashboard-stat">
+          <span class="dashboard-stat-value">{{ "{:,.0f}".format(profit_total) }}</span>
+          <span class="dashboard-stat-label">{{ t('profit_label') }}</span>
+          {% if sales_missing_cost_count > 0 %}
+            <span class="dashboard-stat-sub">{{ t('profit_excludes_n_sales', count=sales_missing_cost_count) }}</span>
+          {% endif %}
+        </div>
+      {% endif %}
     </div>
 
     <form method="GET" action="{{ url_for('index') }}" class="sort-form value-range-form">
