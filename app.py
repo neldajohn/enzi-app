@@ -425,6 +425,14 @@ def init_db():
     # informational for now — it doesn't gate anything yet.
     db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS access_level TEXT NOT NULL DEFAULT 'full'")
 
+    # Per-business low-stock alert threshold. 0 means the business opted out
+    # of low-stock alerts entirely.
+    db.execute("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS low_stock_threshold INTEGER NOT NULL DEFAULT 2")
+
+    # Buyer-initiated storefront reservations auto-expire after 24h; seller
+    # (staff) reservations don't get an expiry.
+    db.execute("ALTER TABLE reservations ADD COLUMN IF NOT EXISTS expires_at TEXT")
+
     db.commit()
     db.close()
 
@@ -892,7 +900,7 @@ def build_value_chart(snapshots):
     return "".join(svg)
 
 
-LOW_STOCK_THRESHOLD = 5
+DEFAULT_LOW_STOCK_THRESHOLD = 2
 
 # Curated per-business theme options. "bg" drives backgrounds (buttons, active
 # nav, etc.) and may be a gradient; "solid" is always a flat color, used
@@ -909,7 +917,7 @@ THEME_PRESETS = {
     "crimson_red": {"label": "Crimson Red", "bg": "#b91c1c", "solid": "#b91c1c"},
     "tanzania_black_gradient": {"label": "Tanzania Black", "bg": "linear-gradient(135deg, #4b5563, #000000)", "solid": "#111827"},
     "tanzania_green_gradient": {"label": "Tanzania Green", "bg": "linear-gradient(135deg, #2ecc59, #0e7a2c)", "solid": "#1eb53a"},
-    "tanzania_yellow_gradient": {"label": "Tanzania Yellow", "bg": "linear-gradient(135deg, #ffe066, #d4a017)", "solid": "#ca9a04"},
+    "tanzania_yellow_gradient": {"label": "Tanzania Yellow", "bg": "linear-gradient(135deg, #fff45e, #ffd400)", "solid": "#ffce00"},
     "tanzania_blue_gradient": {"label": "Tanzania Blue", "bg": "linear-gradient(135deg, #0057b8, #002a5c)", "solid": "#00397a"},
 }
 DEFAULT_THEME_PRESET = "enzi_green"
@@ -1076,7 +1084,11 @@ def index():
     ).fetchall()
 
     today_str = date.today().isoformat()
-    low_stock_count = sum(1 for item in items if available_to_sell(item) <= LOW_STOCK_THRESHOLD)
+    low_stock_threshold = business["low_stock_threshold"]
+    low_stock_count = (
+        sum(1 for item in items if available_to_sell(item) <= low_stock_threshold)
+        if low_stock_threshold > 0 else 0
+    )
     overdue_incoming_count = sum(1 for inc in incoming if inc["expected_date"] and inc["expected_date"] < today_str)
     low_stock_dismissed = session.get("low_stock_dismissed", False)
 
@@ -1097,7 +1109,7 @@ def index():
         pending_reservations_count=reservations_count,
         overdue_incoming_count=overdue_incoming_count,
         low_stock_dismissed=low_stock_dismissed,
-        low_stock_threshold=LOW_STOCK_THRESHOLD,
+        low_stock_threshold=low_stock_threshold,
         active_tab="home",
         just_added=session.pop("just_added", None),
         just_sold=session.pop("just_sold", None),
@@ -1307,7 +1319,7 @@ def sell_tab():
 
     return render_template(
         "sell.html", business=business, user=user, items=items, q=q, sort=sort, view=view,
-        low_stock_threshold=LOW_STOCK_THRESHOLD, active_tab="sell",
+        low_stock_threshold=business["low_stock_threshold"], active_tab="sell",
         just_added=session.pop("just_added", None),
         just_sold=session.pop("just_sold", None),
         error=session.pop("error", None),
@@ -2113,6 +2125,32 @@ def edit_business_contact():
     return render_template("contact_details_edit.html", business=business, values=values, error=None)
 
 
+@app.route("/admin/low-stock-threshold", methods=["POST"])
+def update_low_stock_threshold():
+    business_id = session.get("business_id")
+    if not business_id:
+        return redirect(url_for("enter_name"))
+
+    db = get_db()
+    business = db.execute("SELECT * FROM businesses WHERE id = ?", (business_id,)).fetchone()
+    if not business:
+        session.clear()
+        return redirect(url_for("enter_name"))
+
+    raw = request.form.get("low_stock_threshold", "").strip()
+    try:
+        threshold = int(raw)
+    except ValueError:
+        threshold = business["low_stock_threshold"]
+    threshold = max(0, min(threshold, 100000))
+
+    db.execute("UPDATE businesses SET low_stock_threshold = ? WHERE id = ?", (threshold, business_id))
+    db.commit()
+
+    session["just_added"] = t("msg_low_stock_threshold_updated")
+    return redirect(url_for("business_admin"))
+
+
 @app.route("/admin/personal", methods=["GET", "POST"])
 def personal_admin():
     business, user, bounce = _require_business()
@@ -2390,7 +2428,7 @@ def sell_item(item_id):
         sale_price = None
         try:
             quantity_sold = int(quantity_sold_raw)
-            sale_price = float(sale_price_raw)
+            sale_price = float(sale_price_raw) if sale_price_raw else item["price_per_unit"]
         except ValueError:
             error = error or t("err_sell_numbers")
 
@@ -3115,7 +3153,6 @@ def item_history(item_id):
         history=list(reversed(history)),
         chart_svg=chart_svg,
         avail=available_to_sell(item),
-        low_stock_threshold=LOW_STOCK_THRESHOLD,
     )
 
 
@@ -3268,6 +3305,11 @@ def add_restock():
         new_customer_name = request.form.get("new_customer_name", "").strip()
         new_customer_whatsapp = request.form.get("new_customer_whatsapp", "").strip()
         date_requested_raw = request.form.get("date_requested", "").strip()
+        confirm_in_stock = request.form.get("confirm_in_stock") == "1"
+        form_values = {
+            "item_id": item_id, "customer_id": customer_id_raw, "new_customer_name": new_customer_name,
+            "new_customer_whatsapp": new_customer_whatsapp, "date_requested": date_requested_raw,
+        }
 
         resolved_customer_id, customer_name, resolve_error = _resolve_customer(
             db, business_id, user_id, performed_by_name, customer_id_raw, new_customer_name, new_customer_whatsapp
@@ -3284,6 +3326,12 @@ def add_restock():
             return render_template(
                 "restock_add.html", items=items, customers=customers, error=t("err_restock_required"),
                 prefill_item_id=item_id,
+            )
+
+        if not confirm_in_stock and available_to_sell(item) > 0:
+            return render_template(
+                "restock_add.html", items=items, customers=customers, error=None,
+                prefill_item_id=item_id, in_stock_warning=item, form_values=form_values,
             )
 
         now = datetime.now().isoformat(timespec="seconds")
@@ -3472,19 +3520,21 @@ def export_csv():
 # sends themselves, mirroring Mezani's reservation-to-WhatsApp pattern.
 
 ASK_SELLER_MESSAGE = (
-    "Habari! Nina swali kuhusu bidhaa hii kwenye Enzi:\n"
-    "Bidhaa: {item}\n"
-    "Bei: {price}"
+    "*Habari!* Nina swali kuhusu bidhaa hii kutoka {business} kwenye Enzi:\n\n"
+    "*Bidhaa:* {item}\n"
+    "*Bei:* {price}\n"
+    "*Kiungo:* {link}"
 )
 
 BUY_NOW_MESSAGE = (
-    "Habari! Nataka kununua bidhaa ifuatayo kwenye Enzi:\n"
-    "Bidhaa: {item}\n"
-    "Bei: {price}\n\n"
-    "Anwani ya kupokelea: {address}\n"
-    "Upatikanaji: {availability}\n"
-    "Njia ya utoaji: {delivery_method}\n\n"
-    "Asante!"
+    "*Habari!* Nataka kununua bidhaa ifuatayo kutoka {business} kwenye Enzi:\n\n"
+    "*Bidhaa:* {item}\n"
+    "*Bei:* {price}\n"
+    "*Kiungo:* {link}\n\n"
+    "*Anwani ya kupokelea:* {address}\n"
+    "*Upatikanaji:* {availability}\n"
+    "*Njia ya utoaji:* {delivery_method}\n\n"
+    "Bidhaa imehifadhiwa kwa saa 24. Asante!"
 )
 
 
@@ -3540,8 +3590,10 @@ def store_item_detail(item_id):
     if not item:
         return redirect(url_for("store_marketplace"))
     seller = _get_storefront_item_seller(db, item)
+    item_link = url_for("store_item_detail", item_id=item_id, _external=True)
     ask_message = ASK_SELLER_MESSAGE.format(
-        item=item_descriptor(item), price=format_price(item["price_per_unit"]),
+        business=(seller["business_name"] if seller else t("app_name")),
+        item=item_descriptor(item), price=format_price(item["price_per_unit"]), link=item_link,
     )
     ask_wa_link = build_whatsapp_link(item["seller_whatsapp"], ask_message)
     return render_template(
@@ -3619,16 +3671,18 @@ def store_buy_now(item_id):
             )
 
         agreed_price = item["price_per_unit"] * quantity
+        expires_at = (datetime.now() + timedelta(hours=24)).isoformat(timespec="seconds")
         db.execute(
             """
             INSERT INTO reservations (id, business_id, item_id, item_name, quantity, agreed_price, customer_name,
                                        customer_key, customer_id, source, buyer_delivery_address,
-                                       buyer_availability, buyer_delivery_method, reserved_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'buyer', ?, ?, ?, ?)
+                                       buyer_availability, buyer_delivery_method, reserved_at, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'buyer', ?, ?, ?, ?, ?)
             """,
             (
                 uuid.uuid4().hex, item["business_id"], item_id, item["item_name"], quantity, agreed_price,
                 buyer_name, customer_key, customer_id, delivery_address, buyer_availability, delivery_method, now,
+                expires_at,
             ),
         )
         record_item_history(
@@ -3638,7 +3692,8 @@ def store_buy_now(item_id):
         db.commit()
 
         message = BUY_NOW_MESSAGE.format(
-            item=item_descriptor(item), price=format_price(item["price_per_unit"]),
+            business=item["seller_name"], item=item_descriptor(item), price=format_price(item["price_per_unit"]),
+            link=url_for("store_item_detail", item_id=item_id, _external=True),
             address=delivery_address, availability=buyer_availability, delivery_method=delivery_method,
         )
         wa_link = build_whatsapp_link(item["seller_whatsapp"], message)

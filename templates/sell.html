@@ -96,7 +96,7 @@
                 <img src="{{ item.photo_url }}" alt="{{ item.item_name }}" class="item-photo">
               {% endif %}
               <div class="item-main">
-                <span class="item-name">{{ item.item_name }}{% if avail <= low_stock_threshold %}<span class="exclamation" title="Low stock">!</span>{% endif %}</span>
+                <span class="item-name">{{ item.item_name }}{% if low_stock_threshold > 0 and avail <= low_stock_threshold %}<span class="exclamation" title="Low stock">!</span>{% endif %}</span>
                 {% if item.item_brand %}<span class="item-code">{{ item.item_brand }}</span>{% endif %}
                 {% if item.item_type %}<span class="item-code">{{ item.item_type }}</span>{% endif %}
                 {% if item.item_color %}<span class="item-code">{{ item.item_color }}</span>{% endif %}

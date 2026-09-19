@@ -54,6 +54,7 @@
                   {% if r.customer_name %}<span class="item-code">{{ t('for_customer', customer=r.customer_name) }}</span>{% endif %}
                   {% if r.reserved_by_name %}<span class="item-code">{{ t('by_name', name=r.reserved_by_name|titlecase) }}</span>{% endif %}
                   <span class="item-code">{{ t('reserved_at', date=r.reserved_at|dt) }}</span>
+                  {% if r.expires_at %}<span class="item-code">{{ t('reserved_until', date=r.expires_at|dt) }}</span>{% endif %}
                   {% if r.expected_sale_date %}<span class="item-code">{{ t('follow_up_by', date=r.expected_sale_date) }}</span>{% endif %}
                 </div>
                 <div class="item-meta">

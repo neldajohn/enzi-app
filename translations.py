@@ -243,6 +243,7 @@ TRANSLATIONS = {
         # Reserved section
         "for_customer": "For {customer}",
         "reserved_at": "Reserved {date}",
+        "reserved_until": "Held until {date} — after that you can safely remove it",
         "follow_up_by": "Follow up by {date}",
 
         # Deleted section
@@ -273,6 +274,7 @@ TRANSLATIONS = {
         "filling_reservation_prefix": "Filling reservation for {customer}",
         "label_quantity_sold": "Quantity sold",
         "label_sale_price": "Sale price (TZS)",
+        "sale_price_placeholder": "Leave blank to use the listed price ({price})",
         "label_customer_name": "Customer name",
         "ph_customer_name": "e.g. Fatuma",
         "label_sale_date": "Sale date",
@@ -340,6 +342,8 @@ TRANSLATIONS = {
         # restock_add.html
         "restock_title": "Note a restock request",
         "restock_subtitle": "A customer wants an item that's out of stock and you haven't ordered more yet.",
+        "restock_in_stock_warning": "\"{name}\" still has {avail} in stock — did you mean to sell it instead of noting a restock request?",
+        "continue_anyway": "Continue anyway",
         "label_item": "Item",
         "label_date_requested": "Date requested",
         "optional_defaults_now": "(optional — defaults to now)",
@@ -403,6 +407,11 @@ TRANSLATIONS = {
         "remove_user_btn": "Yes, remove this person",
         "msg_user_removed": "\"{name}\" was removed from the business.",
         "err_cannot_remove_self": "You can't remove yourself. Ask another teammate to do this instead.",
+        "section_low_stock": "Low stock alert",
+        "low_stock_settings_subtitle": "Choose when Enzi should warn you that an item is running low.",
+        "label_low_stock_threshold": "Alert me when stock is at or below",
+        "low_stock_threshold_hint": "Set to 0 to turn off low-stock alerts.",
+        "msg_low_stock_threshold_updated": "Low stock alert setting updated.",
         "section_contact_details": "Contact details",
         "contact_details_subtitle": "How buyers and partners can reach your business.",
         "label_business_address": "Business address",
@@ -557,7 +566,7 @@ TRANSLATIONS = {
         "label_delivery_method": "Preferred delivery method",
         "ph_delivery_method": "e.g. Boda delivery, pick up myself",
         "store_buy_submit_btn": "Reserve & continue to WhatsApp",
-        "store_reserved_notice": "Reserved! Now send the message below to {seller} on WhatsApp to confirm.",
+        "store_reserved_notice": "Reserved for 24 hours! Now send the message below to {seller} on WhatsApp to confirm.",
         "store_open_whatsapp_btn": "Open WhatsApp",
         "err_buy_now_fields_required": "Please fill in your name, delivery address, availability, and delivery method.",
         "store_message_preview": "Message preview",

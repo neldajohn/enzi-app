@@ -14,7 +14,7 @@
     {% include '_header.html' %}
 
     <div class="list-header">
-      <h2>{{ item.item_name }}{% if avail <= low_stock_threshold %}<span class="exclamation" title="Low stock">!</span>{% endif %}</h2>
+      <h2>{{ item.item_name }}{% if business.low_stock_threshold > 0 and avail <= business.low_stock_threshold %}<span class="exclamation" title="Low stock">!</span>{% endif %}</h2>
       <a href="{{ url_for('sell_tab') }}" class="switch-link arrow-link">&larr; {{ t('back') }}</a>
     </div>
     {% if item.item_type %}<p class="subtitle">{{ item.item_type }}</p>{% endif %}

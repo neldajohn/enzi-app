@@ -23,35 +23,52 @@
       <p class="message message-error">{{ error }}</p>
     {% endif %}
 
-    <form method="POST" action="{{ url_for('add_restock') }}" class="card">
-      <label for="item_id">{{ t('label_item') }}</label>
-      <select id="item_id" name="item_id" required>
-        <option value="" disabled {% if not prefill_item_id %}selected{% endif %}>{{ t('select_an_item') }}</option>
-        {% for item in items %}
-          <option value="{{ item.id }}" {% if item.id == prefill_item_id %}selected{% endif %}>{% if item.item_type %}{{ item.item_type }} — {% endif %}{{ item.item_name }}</option>
-        {% endfor %}
-      </select>
-
-      <label for="customer_id">{{ t('label_customer_name') }} <span class="optional">{{ t('optional') }}</span></label>
-      <select id="customer_id" name="customer_id" onchange="toggleNewVendorFields(this, 'new-customer-fields')">
-        <option value="" selected>{{ t('select_a_customer') }}</option>
-        {% for c in customers %}
-          <option value="{{ c.id }}">{{ c.name }}{% if c.whatsapp_number %} — {{ c.whatsapp_number }}{% endif %}</option>
-        {% endfor %}
-        <option value="__new__">{{ t('add_new_customer_option') }}</option>
-      </select>
-      <div id="new-customer-fields" hidden>
-        <input type="text" name="new_customer_name" placeholder="{{ t('ph_customer_name') }}" maxlength="150">
-        <input type="tel" name="new_customer_whatsapp" placeholder="{{ t('ph_vendor_phone') }}" maxlength="30">
+    {% if in_stock_warning %}
+      <p class="message message-error">{{ t('restock_in_stock_warning', name=in_stock_warning.item_name, avail=available_to_sell(in_stock_warning)) }}</p>
+      <div class="actions-row">
+        <a href="{{ url_for('sell_item', item_id=in_stock_warning.id) }}" class="qty-btn qty-btn-primary">{{ t('sell') }}</a>
+        <form method="POST" action="{{ url_for('add_restock') }}" class="inline-form">
+          <input type="hidden" name="item_id" value="{{ form_values.item_id }}">
+          <input type="hidden" name="customer_id" value="{{ form_values.customer_id }}">
+          <input type="hidden" name="new_customer_name" value="{{ form_values.new_customer_name }}">
+          <input type="hidden" name="new_customer_whatsapp" value="{{ form_values.new_customer_whatsapp }}">
+          <input type="hidden" name="date_requested" value="{{ form_values.date_requested }}">
+          <input type="hidden" name="confirm_in_stock" value="1">
+          <button type="submit" class="qty-btn">{{ t('continue_anyway') }}</button>
+        </form>
       </div>
+      <a href="{{ url_for('items_tab') }}" class="switch-link">{{ t('cancel') }}</a>
+    {% else %}
+      <form method="POST" action="{{ url_for('add_restock') }}" class="card">
+        <label for="item_id">{{ t('label_item') }}</label>
+        <select id="item_id" name="item_id" required>
+          <option value="" disabled {% if not prefill_item_id %}selected{% endif %}>{{ t('select_an_item') }}</option>
+          {% for item in items %}
+            <option value="{{ item.id }}" {% if item.id == prefill_item_id %}selected{% endif %}>{% if item.item_type %}{{ item.item_type }} — {% endif %}{{ item.item_name }}</option>
+          {% endfor %}
+        </select>
 
-      <label for="date_requested">{{ t('label_date_requested') }} <span class="optional">{{ t('optional_defaults_now') }}</span></label>
-      <input type="date" id="date_requested" name="date_requested">
+        <label for="customer_id">{{ t('label_customer_name') }} <span class="optional">{{ t('optional') }}</span></label>
+        <select id="customer_id" name="customer_id" onchange="toggleNewVendorFields(this, 'new-customer-fields')">
+          <option value="" selected>{{ t('select_a_customer') }}</option>
+          {% for c in customers %}
+            <option value="{{ c.id }}">{{ c.name }}{% if c.whatsapp_number %} — {{ c.whatsapp_number }}{% endif %}</option>
+          {% endfor %}
+          <option value="__new__">{{ t('add_new_customer_option') }}</option>
+        </select>
+        <div id="new-customer-fields" hidden>
+          <input type="text" name="new_customer_name" placeholder="{{ t('ph_customer_name') }}" maxlength="150">
+          <input type="tel" name="new_customer_whatsapp" placeholder="{{ t('ph_vendor_phone') }}" maxlength="30">
+        </div>
 
-      <button type="submit">{{ t('save_request') }}</button>
-    </form>
+        <label for="date_requested">{{ t('label_date_requested') }} <span class="optional">{{ t('optional_defaults_now') }}</span></label>
+        <input type="date" id="date_requested" name="date_requested">
 
-    <a href="{{ url_for('items_tab') }}" class="switch-link">{{ t('cancel') }}</a>
+        <button type="submit">{{ t('save_request') }}</button>
+      </form>
+
+      <a href="{{ url_for('items_tab') }}" class="switch-link">{{ t('cancel') }}</a>
+    {% endif %}
   </main>
   {% include '_bottom_nav.html' %}
   <a href="javascript:void(0)" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑ Top</a>
