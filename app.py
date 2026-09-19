@@ -959,12 +959,40 @@ DEFAULT_THEME_PRESET = "enzi_green"
 HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
+def _lighten_hex(hex_color, amount):
+    hex_color = hex_color.lstrip("#")
+    r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+    r = round(r + (255 - r) * amount)
+    g = round(g + (255 - g) * amount)
+    b = round(b + (255 - b) * amount)
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def _darken_hex(hex_color, amount):
+    hex_color = hex_color.lstrip("#")
+    r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+    r = round(r * (1 - amount))
+    g = round(g * (1 - amount))
+    b = round(b * (1 - amount))
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def _gradient_from_hex(hex_color):
+    """A consistent diagonal gradient derived from a single flat color, so
+    every theme — preset or custom-picked — renders as a gradient in the
+    app rather than some being flat and some being gradients."""
+    light = _lighten_hex(hex_color, 0.35)
+    dark = _darken_hex(hex_color, 0.20)
+    return f"linear-gradient(135deg, {light}, {dark})"
+
+
 def get_theme(business):
     if business and business["theme_preset"] == "custom" and business["theme_custom_color"]:
         color = business["theme_custom_color"]
-        return {"label": "Custom", "bg": color, "solid": color}
+        return {"label": "Custom", "bg": _gradient_from_hex(color), "solid": color}
     key = (business["theme_preset"] if business else None) or DEFAULT_THEME_PRESET
-    return THEME_PRESETS.get(key, THEME_PRESETS[DEFAULT_THEME_PRESET])
+    preset = THEME_PRESETS.get(key, THEME_PRESETS[DEFAULT_THEME_PRESET])
+    return {"label": preset["label"], "bg": _gradient_from_hex(preset["solid"]), "solid": preset["solid"]}
 
 
 # Curated font choices a business can pick for their own admin pages and
